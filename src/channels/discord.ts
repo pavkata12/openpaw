@@ -1,4 +1,5 @@
 import type { ChannelAdapter, InboundMessage, SendContext } from "./types.js";
+import { GatewayIntentBits } from "discord-api-types/v10";
 
 export function createDiscordChannel(token: string, allowedUserIds?: string[]): ChannelAdapter {
   let handler: ((msg: InboundMessage) => void | Promise<void>) | null = null;
@@ -7,7 +8,16 @@ export function createDiscordChannel(token: string, allowedUserIds?: string[]): 
   return {
     name: "discord",
     async start() {
-      const { Client, GatewayIntentBits } = await import("discord.js");
+      let Client: typeof import("discord.js").Client;
+      try {
+        const discord = await import("discord.js");
+        Client = discord.Client;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Discord.js failed to load (install deps: npm install; need Node >= 20). On Kali, try: sudo apt install build-essential python3. Error: ${msg}`
+        );
+      }
       const c = new Client({
         intents: [
           GatewayIntentBits.Guilds,
