@@ -1,0 +1,14 @@
+export { loadConfig, type Config } from "./config.js";
+export { createLLM, rawCompletion, type LLMAdapter, type Message } from "./llm.js";
+export { runAgent } from "./agent.js";
+export { createRouter } from "./router.js";
+export { createSessionManager } from "./session.js";
+export { createLaneQueue } from "./lane-queue.js";
+export type { ToolDefinition, ToolRegistry } from "./tools/types.js";
+export { createToolRegistry } from "./tools/registry.js";
+export { createMemoryTool, createRecallTool } from "./tools/memory.js";
+export { createShellTool } from "./tools/shell.js";
+export { createReActLLM, parseReActOutput } from "./agent/react.js";
+export type { ChannelAdapter, InboundMessage, OutboundMessage } from "./channels/types.js";
+export { createCLIChannel } from "./channels/cli.js";
+export { createDiscordChannel } from "./channels/discord.js";
