@@ -4,6 +4,8 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+/** Project root: folder above dist/ when running compiled code. */
+const projectRoot = resolve(__dirname, "..");
 
 const EnvSchema = z.object({
   OPENPAW_LLM_BASE_URL: z.string().default("http://localhost:11434/v1"),
@@ -74,10 +76,22 @@ function resolveDataDir(raw: string): string {
 export function loadConfig(): Config {
   const configPath = process.env.OPENPAW_CONFIG;
   const configDir = configPath ? dirname(resolve(process.cwd(), configPath)) : process.cwd();
-  const envPath = resolve(configDir, ".env");
-  const altEnvPath = resolve(process.cwd(), ".env");
-  const toLoad = existsSync(envPath) ? envPath : altEnvPath;
-  if (existsSync(toLoad)) {
+  const candidates = [
+    resolve(projectRoot, ".env"),
+    resolve(configDir, ".env"),
+    resolve(process.cwd(), ".env"),
+    resolve(process.cwd(), "..", ".env"),
+  ];
+  const toLoad = candidates.find((p) => existsSync(p));
+  if (!toLoad) {
+    const tried = candidates.join(", ");
+    console.error(
+      "[OpenPaw] No .env file found. Tried: " + tried + "\n  Copy .env.example to .env and configure: cp .env.example .env"
+    );
+  } else if (toLoad !== candidates[0]) {
+    console.warn("[OpenPaw] Loaded .env from: " + toLoad);
+  }
+  if (toLoad) {
     const raw = readFileSync(toLoad, "utf-8");
     const parsed: Record<string, string> = {};
     for (const line of raw.split(/\r?\n/)) {

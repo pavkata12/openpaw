@@ -16,7 +16,11 @@ OpenPaw is a minimal, OpenClaw-inspired framework: an AI that runs on your machi
 ### Easiest: OpenRouter + Kimi K2 (free)
 
 1. Get a free API key at [openrouter.ai/keys](https://openrouter.ai/keys)
-2. Copy `.env.example` to `.env` and set:
+2. **Create `.env`** (the file is not in git; on a fresh clone you must create it):
+   ```bash
+   cp .env.example .env
+   ```
+3. Edit `.env` and set:
 
 ```
 OPENPAW_LLM_BASE_URL=https://openrouter.ai/api/v1
@@ -24,7 +28,7 @@ OPENPAW_LLM_MODEL=moonshotai/kimi-k2:free
 OPENPAW_LLM_API_KEY=sk-or-v1-your-key
 ```
 
-3. Run:
+4. Run:
 
 ```bash
 npm install && npm run build
