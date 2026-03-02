@@ -1,16 +1,28 @@
 #!/usr/bin/env node
 /**
  * Test LLM API directly (no OpenPaw server). Uses .env OPENPAW_LLM_*.
- * Run: node scripts/test-llm.mjs
- * Shows raw response or error so we can see why the model returns nothing.
+ * Run: node scripts/test-llm.mjs   or   npm run test:llm
+ * Loads .env from project root (same as main app).
  */
 
 import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = resolve(__dirname, "..");
 
 function loadEnv() {
-  const envPath = resolve(process.cwd(), ".env");
-  if (!existsSync(envPath)) return {};
+  const candidates = [
+    resolve(projectRoot, ".env"),
+    resolve(process.cwd(), ".env"),
+    resolve(process.cwd(), "..", ".env"),
+  ];
+  const envPath = candidates.find((p) => existsSync(p));
+  if (!envPath) {
+    console.error("[test-llm] No .env found. Tried:", candidates.join(", "));
+    return {};
+  }
   const raw = readFileSync(envPath, "utf-8");
   const out = {};
   for (const line of raw.split(/\r?\n/)) {
