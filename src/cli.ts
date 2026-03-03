@@ -2,9 +2,10 @@ import { existsSync, writeFileSync, mkdirSync, readdirSync, readFileSync, copyFi
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
-import { createLLM } from "./llm.js";
+import { createLLM, createSecondLLM } from "./llm.js";
 import { createReActLLM } from "./agent/react.js";
 import { runAgent } from "./agent.js";
+import { createDelegateToAgentTool, DELEGATE_TO_AGENT_NAME } from "./tools/delegate-agent.js";
 import { createToolRegistry } from "./tools/registry.js";
 import { createMemoryTool, createRecallTool } from "./tools/memory.js";
 import { createShellTool } from "./tools/shell.js";
@@ -116,6 +117,14 @@ async function bootstrap() {
 
   const mode = config.OPENPAW_AGENT_MODE;
   const llm = mode === "react" ? createReActLLM(config, registry) : createLLM(config);
+  const llm2 = createSecondLLM(config);
+  if (llm2) {
+    registry.register(
+      createDelegateToAgentTool((message) =>
+        runAgent(llm2, registry, message, [], { excludeToolNames: [DELEGATE_TO_AGENT_NAME] })
+      )
+    );
+  }
   return { config, llm, registry, mcpClose: mcp.close, pack };
 }
 

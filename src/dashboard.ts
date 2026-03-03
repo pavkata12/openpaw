@@ -3,9 +3,10 @@ import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
-import { createLLM } from "./llm.js";
+import { createLLM, createSecondLLM } from "./llm.js";
 import { createReActLLM } from "./agent/react.js";
 import { runAgent } from "./agent.js";
+import { createDelegateToAgentTool, DELEGATE_TO_AGENT_NAME } from "./tools/delegate-agent.js";
 import { createToolRegistry } from "./tools/registry.js";
 import { createMemoryTool, createRecallTool } from "./tools/memory.js";
 import { createShellTool } from "./tools/shell.js";
@@ -1072,6 +1073,14 @@ export function startDashboard(deps?: DashboardDeps) {
     registry.register(createFetchPageTool());
     registry.register(createOpenUrlTool());
     registry.register(createTranscribeVideoTool(config));
+    const llm2 = createSecondLLM(config);
+    if (llm2) {
+      registry.register(
+        createDelegateToAgentTool((message) =>
+          runAgent(llm2, registry, message, [], { excludeToolNames: [DELEGATE_TO_AGENT_NAME] })
+        )
+      );
+    }
   }
   const llm = deps?.llm ?? (config.OPENPAW_AGENT_MODE === "react" ? createReActLLM(config, registry) : createLLM(config));
   const webChannel = deps?.webChannel;

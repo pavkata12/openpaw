@@ -198,3 +198,17 @@ export function createLLM(config: Config): LLMAdapter {
   };
   return adapter;
 }
+
+/** Create LLM adapter for the second model (dual-agent mode). Returns null if OPENPAW_LLM_2_BASE_URL and OPENPAW_LLM_2_MODEL are not set. */
+export function createSecondLLM(config: Config): LLMAdapter | null {
+  const base2 = config.OPENPAW_LLM_2_BASE_URL?.trim();
+  const model2 = config.OPENPAW_LLM_2_MODEL?.trim();
+  if (!base2 || !model2) return null;
+  const configOverlay: Config = {
+    ...config,
+    OPENPAW_LLM_BASE_URL: base2,
+    OPENPAW_LLM_MODEL: model2,
+    OPENPAW_LLM_API_KEY: config.OPENPAW_LLM_2_API_KEY ?? config.OPENPAW_LLM_API_KEY,
+  };
+  return createLLM(configOverlay);
+}

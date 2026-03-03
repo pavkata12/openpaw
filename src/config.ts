@@ -11,6 +11,10 @@ const EnvSchema = z.object({
   OPENPAW_LLM_BASE_URL: z.string().default("http://localhost:11434/v1"),
   OPENPAW_LLM_MODEL: z.string().default("llama3.2"),
   OPENPAW_LLM_API_KEY: z.string().optional(),
+  /** Second model for dual-agent mode: primary can delegate_to_agent and the second model runs the subtask (same tools, no delegate). */
+  OPENPAW_LLM_2_BASE_URL: z.string().optional(),
+  OPENPAW_LLM_2_MODEL: z.string().optional(),
+  OPENPAW_LLM_2_API_KEY: z.string().optional(),
   /** Number of retries on LLM API timeout or 5xx. Default 2. */
   OPENPAW_LLM_RETRY_COUNT: z.coerce.number().default(2),
   /** Delay in ms before first retry; doubles each time. Default 2000. */

@@ -80,6 +80,9 @@ Environment variables (in `.env` or your shell):
 | `OPENPAW_LLM_BASE_URL` | OpenAI-compatible API base URL | `http://localhost:11434/v1` (Ollama) |
 | `OPENPAW_LLM_MODEL` | Model name | `llama3.2` |
 | `OPENPAW_LLM_API_KEY` | API key (optional for Ollama) | — |
+| `OPENPAW_LLM_2_BASE_URL` | Second model base URL (dual-agent mode). When set with `OPENPAW_LLM_2_MODEL`, the primary agent gets **delegate_to_agent** to hand off subtasks to the second model. | — |
+| `OPENPAW_LLM_2_MODEL` | Second model name (dual-agent). | — |
+| `OPENPAW_LLM_2_API_KEY` | API key for second model (optional; falls back to `OPENPAW_LLM_API_KEY`). | — |
 | `OPENPAW_DATA_DIR` | Directory for memory and data | `./.openpaw` |
 | `OPENPAW_SHELL_FULL_CONTROL` | Allow any shell command (no allowlist). On **Linux** default is `true`; on Windows/macOS default is `false`. | `true` on Linux, `false` elsewhere |
 | `OPENPAW_SHELL_TIMEOUT` | Shell command timeout (ms). Full control: 120s on Linux, 60s on Windows. | — |
@@ -100,6 +103,7 @@ Environment variables (in `.env` or your shell):
 
 - **remember** — Store a fact for the user (key-value).
 - **recall** — Recall a stored fact by key.
+- **delegate_to_agent** — (Only when `OPENPAW_LLM_2_BASE_URL` and `OPENPAW_LLM_2_MODEL` are set.) Delegate a subtask to the second model; it runs with the same tools (except delegate) and returns its reply. Use for parallel work or a second perspective (e.g. one model plans, the other runs nmap and summarizes).
 - **run_shell** — Run shell commands. On **Kali/Linux**: full control by default (any command, `/bin/bash`, 2 min timeout). On Windows/macOS: sandboxed allowlist unless `OPENPAW_SHELL_FULL_CONTROL=true`. Supports `cwd` when full control is on. With `OPENPAW_DANGER_APPROVAL=true`, commands matching `OPENPAW_DANGER_PATTERNS` require the user to reply "approve" before running.
 - **run_script** — Run a predefined script from `OPENPAW_SCRIPTS_DIR` (default: `.openpaw/scripts`). Use for recon, wireless, or web scan workflows. Example scripts and Kali commands: [docs/kali-commands.md](docs/kali-commands.md).
 - **nmap_scan** — Run nmap on a target (IP, CIDR, hostname). `scanType`: quick (default), full, or udp.

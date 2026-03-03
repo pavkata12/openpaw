@@ -62,6 +62,8 @@ export interface RunAgentOptions {
   systemPromptOverride?: string;
   /** When set and history is long, used to generate a short "session so far" summary (LLM). Overrides heuristic summary. */
   sessionSummaryFn?: (history: Message[]) => Promise<string>;
+  /** Tool names to hide from this run (e.g. delegate_to_agent when running the second agent to avoid recursion). */
+  excludeToolNames?: string[];
 }
 
 export async function runAgent(
@@ -86,7 +88,9 @@ export async function runAgent(
     if (summary) effectiveUserMessage = `Session so far:\n${summary}\n\nCurrent request: ${userMessage}`;
   }
   const messages: Message[] = [...conversationHistory, { role: "user", content: effectiveUserMessage }];
-  const toolDefs = tools.list();
+  const toolDefs = tools
+    .list()
+    .filter((d) => !options?.excludeToolNames?.includes(d.name));
   const toolSpecs: ToolSpec[] = toolDefs.length ? toolDefs.map(toolDefToSpec) : [];
   const chatOptions = {
     ...(options?.voice ? { voice: true as const } : {}),
