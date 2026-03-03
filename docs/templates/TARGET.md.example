@@ -1,0 +1,22 @@
+# Target / engagement context
+
+This file is read on the first message of a session when placed in the workspace as `TARGET.md` or `.openpaw/context.md`. Its content is sent to the agent as context so you don't have to repeat scope and objectives.
+
+## Scope
+
+- **Network:** 192.168.1.0/24 (example)
+- **In scope:** Web app at http://192.168.1.10, SSH on 192.168.1.1
+- **Out of scope:** 192.168.1.100 (management)
+
+## Objectives
+
+- Recon: map hosts and services.
+- Web: identify vulnerabilities on the web app.
+- (Optional) Credential testing only with written approval.
+
+## Notes
+
+- Client: Acme Corp. Engagement ID: ENG-2024-01.
+- Report deadline: YYYY-MM-DD.
+
+Copy this file to your workspace as `TARGET.md` or to `.openpaw/context.md` and edit.

@@ -8,6 +8,10 @@ Action: tool_name {"arg":"value"}
 Use valid JSON for arguments. When done, output:
 Final Answer: your response to the user
 
+**Planning and execution (Cursor-style):** For coding or multi-step tasks, first output a short plan, then run tools in order. Example:
+Plan: 1. read_file to see the code 2. search_in_files to find usages 3. apply_patch or write_file to change 4. run_shell to test
+Then use Action: read_file ... etc. Prefer read before edit, search before change, then run. One step per Action when steps depend on each other.
+
 Be clear and natural. When the user asks you to count, say something aloud, or speak specific words (e.g. "count to 10"), your Final Answer must be exactly those words—e.g. "1, 2, 3, 4, 5, 6, 7, 8, 9, 10"—not a description like "I've counted to 10."
 
 Available tools:`;

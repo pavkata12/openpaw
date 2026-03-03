@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { readFileSync, existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -11,24 +11,48 @@ const EnvSchema = z.object({
   OPENPAW_LLM_BASE_URL: z.string().default("http://localhost:11434/v1"),
   OPENPAW_LLM_MODEL: z.string().default("llama3.2"),
   OPENPAW_LLM_API_KEY: z.string().optional(),
+  /** Number of retries on LLM API timeout or 5xx. Default 2. */
+  OPENPAW_LLM_RETRY_COUNT: z.coerce.number().default(2),
+  /** Delay in ms before first retry; doubles each time. Default 2000. */
+  OPENPAW_LLM_RETRY_DELAY_MS: z.coerce.number().default(2000),
+  /** Optional skill pack name (recon, wireless, web, full). When set, only pack tools + base (remember, recall, run_shell) are registered. Use "full" or leave unset for all tools. */
+  OPENPAW_PACK: z.string().optional(),
+  /** System prompt from workspace file: default = ignore file; append = base + SOUL.md/content; replace = only file content. */
+  OPENPAW_SYSTEM_PROMPT_MODE: z.enum(["default", "append", "replace"]).default("default"),
   OPENPAW_DISCORD_TOKEN: z.string().optional(),
   OPENPAW_DISCORD_ALLOWED_IDS: z.string().optional(),
   OPENPAW_DATA_DIR: z.string().default("./.openpaw"),
   OPENPAW_CONFIG: z.string().optional(),
+  /** Root directory for code tools (read_file, write_file, list_dir, search_in_files, apply_patch). Paths are resolved against this. Default: current working directory. */
+  OPENPAW_WORKSPACE: z.string().default("."),
+  /** When true, log every tool call to an audit file (tool name, args, result summary). Useful for Kali/engagements. */
+  OPENPAW_AUDIT_LOG: z.string().default("false").transform((v) => v === "1" || v === "true"),
+  /** Path to audit log file. If unset, uses {OPENPAW_DATA_DIR}/audit.log */
+  OPENPAW_AUDIT_LOG_PATH: z.string().optional(),
+  /** Directory for run_script tool (predefined scripts). If unset, uses {OPENPAW_DATA_DIR}/scripts */
+  OPENPAW_SCRIPTS_DIR: z.string().optional(),
   OPENPAW_LOG_FORMAT: z.enum(["text", "json"]).default("text"),
   OPENPAW_SHELL_ALLOWED: z.string().optional(),
   OPENPAW_SHELL_BLOCKED_PATHS: z.string().optional(),
-  /** When true, shell tool has full control: no allowlist/blocklist, cwd support, proper shell (cmd/bash). Like OpenClaw. */
+  /** When true, shell tool has full control: no allowlist/blocklist, cwd support, proper shell (cmd/bash). On Linux (e.g. Kali) defaults to true so the agent can run any command and control the system. */
   OPENPAW_SHELL_FULL_CONTROL: z
     .string()
-    .default("false")
+    .default(process.platform === "linux" ? "true" : "false")
     .transform((v) => v === "1" || v === "true"),
   /** Shell command timeout in ms (default 60000 when full control, 30000 otherwise). */
   OPENPAW_SHELL_TIMEOUT: z.coerce.number().optional(),
+  /** When true, run_shell will require user approval for commands matching OPENPAW_DANGER_PATTERNS. */
+  OPENPAW_DANGER_APPROVAL: z.string().default("false").transform((v) => v === "1" || v === "true"),
+  /** Comma-separated substrings; if command contains any, and OPENPAW_DANGER_APPROVAL=true, approval is required. E.g. sudo,rm -rf,nc -e,msfconsole. */
+  OPENPAW_DANGER_PATTERNS: z.string().optional(),
   OPENPAW_MEMORY_MAX_ENTRIES: z.coerce.number().default(1000),
   OPENPAW_AGENT_MODE: z.enum(["native", "react", "auto"]).default("auto"),
   OPENPAW_HISTORY_SUMMARIZE_THRESHOLD: z.coerce.number().default(20),
   OPENPAW_HISTORY_KEEP_RAW: z.coerce.number().default(10),
+  /** Session TTL in hours; expired sessions are not loaded or persisted. Default 24. */
+  OPENPAW_SESSION_TTL_HOURS: z.coerce.number().default(24),
+  /** Max messages per session before trimming. Default 50. */
+  OPENPAW_SESSION_MAX_HISTORY: z.coerce.number().default(50),
   OPENPAW_SCHEDULER_ENABLED: z
     .string()
     .default("true")
@@ -83,6 +107,7 @@ export function loadConfig(): Config {
     resolve(process.cwd(), "..", ".env"),
   ];
   const toLoad = candidates.find((p) => existsSync(p));
+  if (toLoad) process.env.OPENPAW_LOADED_ENV_PATH = toLoad;
   if (!toLoad) {
     const tried = candidates.join(", ");
     console.error(
@@ -101,8 +126,41 @@ export function loadConfig(): Config {
     Object.assign(process.env, parsed);
   }
   const parsed = EnvSchema.parse(process.env);
+  const dataDir = resolveDataDir(parsed.OPENPAW_DATA_DIR);
+  const engagementsDir = join(dataDir, "engagements");
+  const currentEngagementPath = join(dataDir, "current_engagement");
+  let engagementName: string | undefined;
+  if (existsSync(currentEngagementPath)) {
+    try {
+      const line = readFileSync(currentEngagementPath, "utf-8").split(/\r?\n/)[0]?.trim();
+      if (line) engagementName = line;
+    } catch {
+      /* ignore */
+    }
+  }
+  const workspaceRaw = parsed.OPENPAW_WORKSPACE;
+  const workspace =
+    engagementName
+      ? resolve(engagementsDir, engagementName)
+      : workspaceRaw.startsWith("/") || (workspaceRaw.length >= 2 && workspaceRaw[1] === ":")
+        ? resolve(workspaceRaw)
+        : resolve(process.cwd(), workspaceRaw);
+  const scriptsDirRaw = parsed.OPENPAW_SCRIPTS_DIR?.trim();
+  const scriptsDir = scriptsDirRaw
+    ? scriptsDirRaw.startsWith("/") || (scriptsDirRaw.length >= 2 && scriptsDirRaw[1] === ":")
+      ? resolve(scriptsDirRaw)
+      : resolve(process.cwd(), scriptsDirRaw)
+    : resolve(dataDir, "scripts");
+  const auditLogPath = parsed.OPENPAW_AUDIT_LOG_PATH?.trim()
+    ? parsed.OPENPAW_AUDIT_LOG_PATH.startsWith("/") || (parsed.OPENPAW_AUDIT_LOG_PATH.length >= 2 && parsed.OPENPAW_AUDIT_LOG_PATH[1] === ":")
+      ? resolve(parsed.OPENPAW_AUDIT_LOG_PATH)
+      : resolve(process.cwd(), parsed.OPENPAW_AUDIT_LOG_PATH)
+    : resolve(dataDir, "audit.log");
   return {
     ...parsed,
-    OPENPAW_DATA_DIR: resolveDataDir(parsed.OPENPAW_DATA_DIR),
+    OPENPAW_DATA_DIR: dataDir,
+    OPENPAW_WORKSPACE: workspace,
+    OPENPAW_SCRIPTS_DIR: scriptsDir,
+    OPENPAW_AUDIT_LOG_PATH: auditLogPath,
   };
 }

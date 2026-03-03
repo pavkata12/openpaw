@@ -71,6 +71,9 @@ try {
   console.log("Status:", res.status, res.statusText);
   if (!res.ok) {
     console.log("Error body:", text.slice(0, 500));
+    if (res.status === 401 && base.includes("openrouter")) {
+      console.log("\n  OpenRouter 401: API key invalid or expired. Get a new key at https://openrouter.ai/keys and set OPENPAW_LLM_API_KEY in .env");
+    }
     process.exit(1);
   }
 

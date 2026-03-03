@@ -1,4 +1,7 @@
 import { createServer } from "node:http";
+import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
 import { createLLM } from "./llm.js";
 import { createReActLLM } from "./agent/react.js";
@@ -6,6 +9,17 @@ import { runAgent } from "./agent.js";
 import { createToolRegistry } from "./tools/registry.js";
 import { createMemoryTool, createRecallTool } from "./tools/memory.js";
 import { createShellTool } from "./tools/shell.js";
+import {
+  createReadFileTool,
+  createWriteFileTool,
+  createListDirTool,
+  createSearchInFilesTool,
+  createApplyPatchTool,
+} from "./tools/code.js";
+import { createRunScriptTool } from "./tools/run-script.js";
+import { createNmapScanTool } from "./tools/nmap-scan.js";
+import { createWirelessScanTool, createWirelessAttackTool } from "./tools/wireless.js";
+import { createNiktoScanTool } from "./tools/nikto-scan.js";
 import { createLocalWhisperSTT, createElevenLabsSTT } from "./voice/stt.js";
 import type { ChannelAdapter } from "./channels/types.js";
 import { loadTasks, saveTasks } from "./scheduler/task-store.js";
@@ -263,7 +277,7 @@ const HTML = `
 </head>
 <body>
   <h1>OpenPaw</h1>
-  <p class="muted">Your self-hosted AI assistant</p>
+  <p class="muted">Your self-hosted AI assistant <span id="appVersion"></span></p>
   <section>
     <h2>Chat</h2>
     <div class="chat-row">
@@ -273,7 +287,22 @@ const HTML = `
     <div id="chatLog"></div>
   </section>
   <section>
-    <p class="muted"><a href="/voice">Voice chat</a> | <a href="/tasks">Scheduled tasks</a> | <a href="/history">History</a> | <code>npm run start:cli</code></p>
+    <h2>Workspace (engagement)</h2>
+    <p class="muted">Current workspace is used for code tools and TARGET.md. Restart dashboard or gateway to apply after change.</p>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
+      <select id="engagementSelect" style="padding:0.5rem 1rem;border-radius:8px;border:1px solid #3f3f46;background:#18181b;color:#e4e4e7;min-width:160px;">
+        <option value="">— default —</option>
+      </select>
+      <span id="engagementStatus" class="muted"></span>
+    </div>
+  </section>
+  <section>
+    <h2>Recent activity</h2>
+    <p class="muted">Last 5 tool calls. <a href="/audit">Full audit log</a></p>
+    <div id="recentAudit" style="min-height:2rem;font-size:0.85rem;color:#a1a1aa;">Loading...</div>
+  </section>
+  <section>
+    <p class="muted"><a href="/voice">Voice chat</a> | <a href="/tasks">Scheduled tasks</a> | <a href="/audit">Audit log</a> | <a href="/history">History</a> | <code>npm run start:cli</code></p>
   </section>
   <section>
     <h2>Status</h2>
@@ -283,10 +312,34 @@ const HTML = `
     let sessionId = localStorage.getItem('openpaw-chat-session') || crypto.randomUUID();
     localStorage.setItem('openpaw-chat-session', sessionId);
     fetch('/api/config').then(r => r.json()).then(d => {
-      document.getElementById('config').textContent = JSON.stringify(d, null, 2);
+      if (d.version) document.getElementById('appVersion').textContent = 'v' + d.version;
+      const pre = document.getElementById('config');
+      pre.textContent = JSON.stringify(d, null, 2);
     }).catch(() => {
       document.getElementById('config').textContent = 'Could not load config';
     });
+    fetch('/api/audit?limit=5').then(r => r.json()).then(d => {
+      const el = document.getElementById('recentAudit');
+      const entries = d.entries || [];
+      if (!entries.length) { el.innerHTML = '<span class="muted">No recent tool calls. Enable OPENPAW_AUDIT_LOG to log activity.</span>'; return; }
+      el.innerHTML = '<ul style="margin:0;padding-left:1.2rem;">' + entries.map(e => '<li><strong>' + (e.tool || '') + '</strong> ' + (e.ts || '') + '</li>').join('') + '</ul>';
+    }).catch(() => { document.getElementById('recentAudit').textContent = 'Could not load activity.'; });
+    (function() {
+      const sel = document.getElementById('engagementSelect');
+      const status = document.getElementById('engagementStatus');
+      function loadEngagements() {
+        fetch('/api/engagements').then(r => r.json()).then(d => {
+          sel.innerHTML = '<option value="">— default —</option>' + (d.list || []).map(n => '<option value="' + n + '">' + n + '</option>').join('');
+          if (d.current) sel.value = d.current;
+        }).catch(() => {});
+      }
+      loadEngagements();
+      sel.onchange = function() {
+        const name = sel.value || '';
+        fetch('/api/engagements/current', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+          .then(r => r.json()).then(d => { status.textContent = d.ok ? 'Saved. Restart to apply.' : (d.error || ''); }).catch(() => { status.textContent = 'Error'; });
+      };
+    })();
     const input = document.getElementById('chatInput');
     const send = document.getElementById('chatSend');
     const log = document.getElementById('chatLog');
@@ -400,6 +453,61 @@ const HISTORY_HTML = `
 </html>
 `;
 
+const AUDIT_HTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenPaw — Audit log</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; background: #0f0f12; color: #e4e4e7; }
+    h1 { font-size: 1.5rem; }
+    a { color: #a78bfa; }
+    .muted { color: #71717a; font-size: 0.9rem; }
+    .tool-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+    .tool-bar select { padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #3f3f46; background: #18181b; color: #e4e4e7; }
+    .tool-bar button { padding: 0.4rem 0.8rem; border-radius: 6px; border: none; background: #a78bfa; color: #0f0f12; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #27272a; }
+    th { color: #71717a; font-weight: 500; }
+    .entry-tool { color: #a78bfa; }
+    .entry-ts { color: #71717a; white-space: nowrap; }
+    .entry-args { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    .empty { color: #71717a; padding: 1rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Audit log</h1>
+  <p class="muted"><a href="/">Back to dashboard</a></p>
+  <div class="tool-bar">
+    <label>Last <select id="limit"><option value="50">50</option><option value="100">100</option><option value="200">200</option></select> entries</label>
+    <button type="button" id="refresh">Refresh</button>
+  </div>
+  <div id="content">Loading...</div>
+  <script>
+    function render(entries) {
+      const content = document.getElementById('content');
+      if (!entries.length) { content.innerHTML = '<p class="empty">No audit entries. Enable OPENPAW_AUDIT_LOG in .env to log tool calls.</p>'; return; }
+      content.innerHTML = '<table><thead><tr><th>Time</th><th>Tool</th><th>Args</th><th>Result (summary)</th><th>Channel</th></tr></thead><tbody>' +
+        entries.map(e => {
+          const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+          return '<tr><td class="entry-ts">' + esc(e.ts) + '</td><td class="entry-tool">' + esc(e.tool) + '</td><td class="entry-args" title="' + esc(e.args) + '">' + esc(e.args).slice(0, 80) + (e.args.length > 80 ? '…' : '') + '</td><td>' + esc(e.resultSummary).slice(0, 100) + (e.resultSummary.length > 100 ? '…' : '') + '</td><td>' + esc(e.channel) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+    function load() {
+      const limit = document.getElementById('limit').value;
+      fetch('/api/audit?limit=' + limit).then(r => r.json()).then(d => render(d.entries || [])).catch(() => { document.getElementById('content').textContent = 'Failed to load audit log.'; });
+    }
+    document.getElementById('limit').onchange = load;
+    document.getElementById('refresh').onclick = load;
+    load();
+  </script>
+</body>
+</html>
+`;
+
 function parseBody(req: import("node:http").IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -459,9 +567,23 @@ export function startDashboard(deps?: DashboardDeps) {
   const dataDir = config.OPENPAW_DATA_DIR;
   const registry = deps?.registry ?? createToolRegistry();
   if (!deps?.registry) {
+    const dangerPatterns =
+      config.OPENPAW_DANGER_APPROVAL && config.OPENPAW_DANGER_PATTERNS
+        ? config.OPENPAW_DANGER_PATTERNS.split(",").map((s) => s.trim()).filter(Boolean)
+        : undefined;
     registry.register(createMemoryTool(dataDir, config.OPENPAW_MEMORY_MAX_ENTRIES));
     registry.register(createRecallTool(dataDir));
-    registry.register(createShellTool());
+    registry.register(createShellTool({ dangerPatterns }));
+    registry.register(createReadFileTool(config.OPENPAW_WORKSPACE));
+    registry.register(createWriteFileTool(config.OPENPAW_WORKSPACE));
+    registry.register(createListDirTool(config.OPENPAW_WORKSPACE));
+    registry.register(createSearchInFilesTool(config.OPENPAW_WORKSPACE));
+    registry.register(createApplyPatchTool(config.OPENPAW_WORKSPACE));
+    registry.register(createRunScriptTool(config.OPENPAW_SCRIPTS_DIR ?? config.OPENPAW_DATA_DIR + "/scripts"));
+    registry.register(createNmapScanTool());
+    registry.register(createWirelessScanTool());
+    registry.register(createWirelessAttackTool());
+    registry.register(createNiktoScanTool());
   }
   const llm = deps?.llm ?? (config.OPENPAW_AGENT_MODE === "react" ? createReActLLM(config, registry) : createLLM(config));
   const webChannel = deps?.webChannel;
@@ -504,10 +626,24 @@ export function startDashboard(deps?: DashboardDeps) {
       res.end(HISTORY_HTML);
       return;
     }
+    if (url === "/audit") {
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(AUDIT_HTML);
+      return;
+    }
     if (url === "/api/config") {
+      let version = "0.0.0";
+      try {
+        const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+        const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8")) as { version?: string };
+        version = pkg.version ?? "0.0.0";
+      } catch {
+        /* ignore */
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
+          version,
           llmBaseUrl: config.OPENPAW_LLM_BASE_URL,
           llmModel: config.OPENPAW_LLM_MODEL,
           dataDir: config.OPENPAW_DATA_DIR,
@@ -563,6 +699,80 @@ export function startDashboard(deps?: DashboardDeps) {
     if (url === "/api/history" && req.method === "GET") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ message: "Session history is in-memory per channel.", entries: [] }));
+      return;
+    }
+    const engagementsDir = join(dataDir, "engagements");
+    const currentEngagementPath = join(dataDir, "current_engagement");
+    if (url === "/api/engagements" && req.method === "GET") {
+      try {
+        let list: string[] = [];
+        if (existsSync(engagementsDir)) {
+          list = readdirSync(engagementsDir).filter((e) => e && !e.startsWith("."));
+        }
+        let current: string | null = null;
+        if (existsSync(currentEngagementPath)) {
+          try {
+            const line = readFileSync(currentEngagementPath, "utf-8").split(/\r?\n/)[0]?.trim();
+            if (line) current = line;
+          } catch {
+            /* ignore */
+          }
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ list, current }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    if (url === "/api/engagements/current" && req.method === "PUT") {
+      try {
+        const body = await parseBody(req);
+        const name = String(body.name ?? "").trim();
+        if (name && !/^[a-zA-Z0-9_-]+$/.test(name)) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "name must be alphanumeric, underscore, or hyphen" }));
+          return;
+        }
+        writeFileSync(currentEngagementPath, name ? name + "\n" : "", "utf-8");
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, current: name || null }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    if (url?.startsWith("/api/audit") && req.method === "GET") {
+      try {
+        const limit = Math.min(500, Math.max(1, parseInt(new URL(req.url!, `http://localhost`).searchParams.get("limit") || "50", 10) || 50));
+        const entries: Array<{ ts: string; tool: string; args: string; resultSummary: string; channel?: string }> = [];
+        if (config.OPENPAW_AUDIT_LOG && config.OPENPAW_AUDIT_LOG_PATH && existsSync(config.OPENPAW_AUDIT_LOG_PATH)) {
+          const raw = readFileSync(config.OPENPAW_AUDIT_LOG_PATH, "utf-8");
+          const lines = raw.split(/\r?\n/).filter((l) => l.trim());
+          for (const line of lines.slice(-limit)) {
+            try {
+              const obj = JSON.parse(line) as { ts?: string; tool?: string; args?: string; resultSummary?: string; channel?: string };
+              entries.push({
+                ts: obj.ts ?? "",
+                tool: obj.tool ?? "",
+                args: obj.args ?? "",
+                resultSummary: obj.resultSummary ?? "",
+                channel: obj.channel,
+              });
+            } catch {
+              /* skip invalid line */
+            }
+          }
+          entries.reverse();
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ entries }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
       return;
     }
     if (url === "/api/voice/transcribe" && req.method === "POST") {

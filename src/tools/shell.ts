@@ -13,6 +13,8 @@ export interface ShellToolOptions {
   blockedPaths?: string[];
   /** Full control: no allowlist/blocklist, cwd support, native shell (cmd.exe / bash). */
   fullControl?: boolean;
+  /** When set and fullControl, commands containing any of these substrings return needs-approval instead of running. */
+  dangerPatterns?: string[];
 }
 
 const DEFAULT_ALLOWED = [
@@ -34,14 +36,18 @@ function hasBlockedPath(command: string, blocked?: string[]): boolean {
   return blocked.some((p) => lower.includes(p.toLowerCase()));
 }
 
+/** Reply prefix when a command requires approval; router/channels use it to show prompt and handle "approve". */
+export const OPENPAW_NEEDS_APPROVAL_PREFIX = "[OPENPAW_NEEDS_APPROVAL]";
+
 export function createShellTool(options: ShellToolOptions = {}): ToolDefinition {
   const fullControl = options.fullControl === true;
-  const timeout = options.timeout ?? (fullControl ? 60_000 : 30_000);
+  const timeout = options.timeout ?? (fullControl ? (process.platform === "linux" ? 120_000 : 60_000) : 30_000);
   const allowed = options.allowedCommands;
   const blocked = options.blockedPaths;
+  const dangerPatterns = options.dangerPatterns?.filter((p) => p.length > 0) ?? [];
 
   const description = fullControl
-    ? "Run a shell command with full control (like OpenClaw). Uses cmd.exe on Windows, bash on Linux. Supports pipes, &&, cwd. No allowlist/blocklist."
+    ? "Run any shell command with full control (Linux: /bin/bash). Supports pipes, &&, cwd, sudo, apt, nmap, etc. On Linux the agent can control the whole machine. No allowlist/blocklist."
     : "Run a shell command on the user's machine. Use for listing files, running scripts, etc. Prefer single commands. Sandboxed: only allowed commands; blocked paths: /etc, /root, etc.";
 
   return {
@@ -52,6 +58,7 @@ export function createShellTool(options: ShellToolOptions = {}): ToolDefinition 
       properties: {
         command: { type: "string", description: "Shell command to run (e.g. ls -la, cd myapp && npm run build)" },
         ...(fullControl ? { cwd: { type: "string", description: "Working directory (absolute or relative to process cwd). Optional." } } : {}),
+        background: { type: "boolean", description: "If true, run in background and return a job id; you will be notified when done." },
       },
     },
     async execute(args) {
@@ -64,6 +71,13 @@ export function createShellTool(options: ShellToolOptions = {}): ToolDefinition 
         }
         if (hasBlockedPath(command, blocked ?? ["/etc", "/root", "/var/log", "rm -rf /"])) {
           return "Error: command references blocked path.";
+        }
+      }
+
+      if (fullControl && dangerPatterns.length > 0) {
+        const lower = command.toLowerCase();
+        if (dangerPatterns.some((p) => lower.includes(p.toLowerCase().trim()))) {
+          return OPENPAW_NEEDS_APPROVAL_PREFIX + command;
         }
       }
 
