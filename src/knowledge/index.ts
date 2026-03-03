@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { existsSync } from "node:fs";
 import type { Config } from "../config.js";
 import { loadChunks, saveChunks, searchChunks, type EmbeddingChunk } from "./vector-store.js";
 
@@ -85,4 +86,39 @@ export async function ingestFile(config: Config, storePath: string, filePath: st
   const raw = await readFile(fullPath, "utf-8");
   const text = raw.replace(/\r\n/g, "\n");
   return embedAndStore(config, storePath, text, filePath);
+}
+
+/** Ingest a file from an absolute path (e.g. workspace TARGET.md) into the store. */
+export async function ingestFromPath(
+  config: Config,
+  storePath: string,
+  absolutePath: string,
+  sourceLabel: string
+): Promise<number> {
+  const raw = await readFile(absolutePath, "utf-8");
+  const text = raw.replace(/\r\n/g, "\n");
+  return embedAndStore(config, storePath, text, sourceLabel);
+}
+
+const WORKSPACE_CONTEXT_FILES = ["TARGET.md", "README.md", ".openpaw/context.md"] as const;
+
+/** If store is empty, ingest TARGET.md, README.md, .openpaw/context.md from workspace. Returns number of chunks added. */
+export async function ensureWorkspaceContextIngested(
+  config: Config,
+  storePath: string,
+  workspacePath: string
+): Promise<number> {
+  const chunks = await loadChunks(storePath);
+  if (chunks.length > 0) return 0;
+  let added = 0;
+  for (const rel of WORKSPACE_CONTEXT_FILES) {
+    const full = join(workspacePath, rel);
+    if (!existsSync(full)) continue;
+    try {
+      added += await ingestFromPath(config, storePath, full, rel);
+    } catch {
+      /* skip */
+    }
+  }
+  return added;
 }

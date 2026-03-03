@@ -3,6 +3,36 @@ import type { ToolRegistry } from "./tools/types.js";
 import { logToolCall } from "./audit.js";
 
 const MAX_TURNS = 10;
+const SESSION_SUMMARY_THRESHOLD = 8;
+const SESSION_SUMMARY_LAST_N = 10;
+const SESSION_SUMMARY_SNIPPET = 70;
+
+/** Build a short "session so far" from recent history so the model doesn't lose the thread. */
+function buildSessionSummary(history: Message[]): string {
+  const events: string[] = [];
+  const take = history.slice(-SESSION_SUMMARY_LAST_N);
+  for (const m of take) {
+    if (m.role === "user") {
+      if (m.content.startsWith("[Tool result for ")) {
+        const match = m.content.match(/\[Tool result for (\w+)\]:\s*(.*)/s);
+        const name = match ? match[1] : "tool";
+        const rest = (match ? match[2] : m.content).trim();
+        const snippet = rest.length > SESSION_SUMMARY_SNIPPET ? rest.slice(0, SESSION_SUMMARY_SNIPPET) + "…" : rest;
+        events.push(`  • ${name}: ${snippet}`);
+      } else {
+        const line = m.content.split(/\n/)[0].trim();
+        const snippet = line.length > 60 ? line.slice(0, 60) + "…" : line;
+        events.push(`  • User: ${snippet}`);
+      }
+    } else if (m.role === "assistant" && events.length > 0) {
+      const last = events[events.length - 1];
+      if (!last.startsWith("  • User:")) continue;
+      events.push("  • Assistant replied.");
+    }
+  }
+  if (events.length === 0) return "";
+  return events.slice(-6).join("\n");
+}
 
 function toolDefToSpec(
   def: { name: string; description: string; parameters?: Record<string, unknown> }
@@ -30,6 +60,8 @@ export interface RunAgentOptions {
   systemPromptSuffix?: string;
   /** When set, used as the only system message (SOUL.md replace mode). */
   systemPromptOverride?: string;
+  /** When set and history is long, used to generate a short "session so far" summary (LLM). Overrides heuristic summary. */
+  sessionSummaryFn?: (history: Message[]) => Promise<string>;
 }
 
 export async function runAgent(
@@ -39,7 +71,21 @@ export async function runAgent(
   conversationHistory: Message[] = [],
   options?: RunAgentOptions
 ): Promise<string> {
-  const messages: Message[] = [...conversationHistory, { role: "user", content: userMessage }];
+  let effectiveUserMessage = userMessage;
+  if (conversationHistory.length >= SESSION_SUMMARY_THRESHOLD) {
+    let summary = "";
+    if (options?.sessionSummaryFn) {
+      try {
+        summary = await options.sessionSummaryFn(conversationHistory);
+      } catch {
+        summary = buildSessionSummary(conversationHistory);
+      }
+    } else {
+      summary = buildSessionSummary(conversationHistory);
+    }
+    if (summary) effectiveUserMessage = `Session so far:\n${summary}\n\nCurrent request: ${userMessage}`;
+  }
+  const messages: Message[] = [...conversationHistory, { role: "user", content: effectiveUserMessage }];
   const toolDefs = tools.list();
   const toolSpecs: ToolSpec[] = toolDefs.length ? toolDefs.map(toolDefToSpec) : [];
   const chatOptions = {

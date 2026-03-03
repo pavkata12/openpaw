@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { ToolDefinition } from "./types.js";
 import type { Config } from "../config.js";
-import { search, embedAndStore, ingestFile } from "../knowledge/index.js";
+import { search, embedAndStore, ingestFile, ensureWorkspaceContextIngested } from "../knowledge/index.js";
 
 function getKnowledgeDir(config: Config, dataDir: string): string {
   if (config.OPENPAW_KNOWLEDGE_DIR) {
@@ -10,14 +10,15 @@ function getKnowledgeDir(config: Config, dataDir: string): string {
     if (p.startsWith("/") || (p.length >= 2 && p[1] === ":")) return p;
     return resolve(process.cwd(), p);
   }
-  return join(dataDir, "knowledge");
+  return join(config.OPENPAW_WORKSPACE, ".openpaw", "knowledge");
 }
 
 export function createKnowledgeSearchTool(config: Config, dataDir: string): ToolDefinition {
   const storePath = getKnowledgeDir(config, dataDir);
   return {
     name: "knowledge_search",
-    description: "Search the custom knowledge base for relevant passages. Returns top matching chunks. Use this to answer questions from ingested documents.",
+    description:
+      "Search the knowledge base for relevant passages (per workspace/engagement). If the store is empty, TARGET.md, README.md and .openpaw/context.md from the current workspace are auto-ingested first. Use to answer from project scope and notes.",
     parameters: {
       type: "object",
       properties: {
@@ -29,6 +30,7 @@ export function createKnowledgeSearchTool(config: Config, dataDir: string): Tool
       const query = String(args.query ?? "").trim();
       if (!query) return "Error: query is required.";
       const topK = Math.min(20, Math.max(1, Number(args.topK) || 5));
+      await ensureWorkspaceContextIngested(config, storePath, config.OPENPAW_WORKSPACE);
       const results = await search(config, storePath, query, topK);
       if (results.length === 0) return "No relevant passages found in the knowledge base.";
       return results.map((r, i) => `[${i + 1}] ${r.source ? `(${r.source}) ` : ""}${r.text}`).join("\n\n");

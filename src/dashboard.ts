@@ -15,11 +15,16 @@ import {
   createListDirTool,
   createSearchInFilesTool,
   createApplyPatchTool,
+  createWorkspaceContextTool,
 } from "./tools/code.js";
 import { createRunScriptTool } from "./tools/run-script.js";
 import { createNmapScanTool } from "./tools/nmap-scan.js";
 import { createWirelessScanTool, createWirelessAttackTool } from "./tools/wireless.js";
 import { createNiktoScanTool } from "./tools/nikto-scan.js";
+import { createDuckDuckGoSearchTool } from "./tools/duckduckgo-search.js";
+import { createFetchPageTool } from "./tools/fetch-page.js";
+import { createOpenUrlTool } from "./tools/open-url.js";
+import { createTranscribeVideoTool } from "./tools/transcribe-video.js";
 import { createLocalWhisperSTT, createElevenLabsSTT } from "./voice/stt.js";
 import type { ChannelAdapter } from "./channels/types.js";
 import { loadTasks, saveTasks } from "./scheduler/task-store.js";
@@ -1057,11 +1062,16 @@ export function startDashboard(deps?: DashboardDeps) {
     registry.register(createListDirTool(config.OPENPAW_WORKSPACE));
     registry.register(createSearchInFilesTool(config.OPENPAW_WORKSPACE));
     registry.register(createApplyPatchTool(config.OPENPAW_WORKSPACE));
+    registry.register(createWorkspaceContextTool(config.OPENPAW_WORKSPACE));
     registry.register(createRunScriptTool(config.OPENPAW_SCRIPTS_DIR ?? config.OPENPAW_DATA_DIR + "/scripts"));
     registry.register(createNmapScanTool());
     registry.register(createWirelessScanTool());
     registry.register(createWirelessAttackTool());
     registry.register(createNiktoScanTool());
+    registry.register(createDuckDuckGoSearchTool());
+    registry.register(createFetchPageTool());
+    registry.register(createOpenUrlTool());
+    registry.register(createTranscribeVideoTool(config));
   }
   const llm = deps?.llm ?? (config.OPENPAW_AGENT_MODE === "react" ? createReActLLM(config, registry) : createLLM(config));
   const webChannel = deps?.webChannel;

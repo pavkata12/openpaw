@@ -1,6 +1,6 @@
 import { readFile, writeFile, readdir, mkdir, unlink } from "node:fs/promises";
 import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
-import { resolve, relative, dirname } from "node:path";
+import { resolve, relative, dirname, join } from "node:path";
 import type { ToolDefinition } from "./types.js";
 
 /** Resolve path under workspace; return null if outside (path traversal). */
@@ -87,25 +87,65 @@ export function createWriteFileTool(workspace: string): ToolDefinition {
   };
 }
 
+const LIST_DIR_RECURSIVE_MAX_DEPTH = 5;
+const LIST_DIR_RECURSIVE_MAX_ENTRIES = 300;
+
 export function createListDirTool(workspace: string): ToolDefinition {
   return {
     name: "list_dir",
     description:
-      "List directory contents in the workspace. Use to explore project structure, find files, or see what's in a folder.",
+      "List directory contents in the workspace. Use to explore project structure, find files, or see what's in a folder. With recursive: true returns a tree (max depth 5, skip node_modules/.git).",
     parameters: {
       type: "object",
       properties: {
         path: { type: "string", description: "Relative path from workspace (default: .)" },
+        recursive: { type: "boolean", description: "If true, list all subdirectories as a tree (max depth 5)" },
       },
     },
     async execute(args) {
       const pathArg = String(args.path ?? ".").trim() || ".";
       const resolved = resolveInWorkspace(workspace, pathArg);
       if (!resolved || !isInside(workspace, resolved)) return "Error: path is outside workspace.";
+      const recursive = args.recursive === true || args.recursive === "true";
+
       try {
-        const entries = await readdir(resolved, { withFileTypes: true });
-        const lines = entries.map((e) => (e.isDirectory() ? `${e.name}/` : e.name)).sort();
-        return lines.length ? lines.join("\n") : "(empty directory)";
+        if (!recursive) {
+          const entries = await readdir(resolved, { withFileTypes: true });
+          const lines = entries.map((e) => (e.isDirectory() ? `${e.name}/` : e.name)).sort();
+          return lines.length ? lines.join("\n") : "(empty directory)";
+        }
+
+        const lines: string[] = [];
+        let count = 0;
+        function walk(dir: string, prefix: string, depth: number): void {
+          if (depth > LIST_DIR_RECURSIVE_MAX_DEPTH || count >= LIST_DIR_RECURSIVE_MAX_ENTRIES) return;
+          let entries: { name: string; isDir: boolean }[];
+          try {
+            entries = readdirSync(dir, { withFileTypes: true })
+              .filter((e) => e.name !== "node_modules" && e.name !== ".git" && (e.name === ".openpaw" || !e.name.startsWith(".")))
+              .map((e) => ({ name: e.name, isDir: e.isDirectory() }))
+              .sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1));
+          } catch {
+            return;
+          }
+          for (let i = 0; i < entries.length && count < LIST_DIR_RECURSIVE_MAX_ENTRIES; i++) {
+            const e = entries[i];
+            const isLast = i === entries.length - 1;
+            const branch = isLast ? "└── " : "├── ";
+            lines.push(prefix + branch + (e.isDir ? e.name + "/" : e.name));
+            count++;
+            if (e.isDir) {
+              const subPath = resolve(dir, e.name);
+              const rel = relative(workspace, subPath);
+              if (rel.startsWith("..")) continue;
+              walk(subPath, prefix + (isLast ? "    " : "│   "), depth + 1);
+            }
+          }
+        }
+        const baseName = pathArg === "." ? "." : pathArg;
+        lines.push(baseName + "/");
+        walk(resolved, "", 0);
+        return lines.join("\n") || "(empty directory)";
       } catch (err: unknown) {
         const m = err instanceof Error ? err.message : String(err);
         if ((err as NodeJS.ErrnoException).code === "ENOENT") return `Error: directory not found: ${pathArg}`;
@@ -314,6 +354,83 @@ export function createApplyPatchTool(workspace: string): ToolDefinition {
         i++;
       }
       return out.length ? out.join("\n") : "No operations in patch.";
+    },
+  };
+}
+
+const WORKSPACE_CONTEXT_MAX_LINES = 150;
+const CONTEXT_FILES = ["TARGET.md", "README.md", "ROADMAP.md", "package.json", "SOUL.md", ".openpaw/context.md"] as const;
+
+/** Get a full workspace overview in one call: directory tree + key files (TARGET, README, context, etc.) for easy context. */
+export function createWorkspaceContextTool(workspace: string): ToolDefinition {
+  return {
+    name: "workspace_context",
+    description:
+      "Get full workspace context in one call: directory tree (recursive) plus contents of key files (TARGET.md, README.md, ROADMAP.md, package.json, SOUL.md, .openpaw/context.md) if they exist. Use at the start of a task to understand the project, or when you need a quick overview. Each file is truncated to 150 lines.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Subfolder to get context for (default: . = workspace root)" },
+      },
+    },
+    async execute(args) {
+      const pathArg = String(args.path ?? ".").trim() || ".";
+      const baseResolved = resolveInWorkspace(workspace, pathArg);
+      if (!baseResolved || !isInside(workspace, baseResolved)) return "Error: path is outside workspace.";
+      const parts: string[] = [];
+
+      try {
+        const entries = readdirSync(baseResolved, { withFileTypes: true });
+        const treeLines: string[] = [];
+        let count = 0;
+        function walk(dir: string, prefix: string, depth: number): void {
+          if (depth > LIST_DIR_RECURSIVE_MAX_DEPTH || count >= LIST_DIR_RECURSIVE_MAX_ENTRIES) return;
+          let list: { name: string; isDir: boolean }[];
+          try {
+            list = readdirSync(dir, { withFileTypes: true })
+              .filter((e) => e.name !== "node_modules" && e.name !== ".git" && (e.name === ".openpaw" || !e.name.startsWith(".")))
+              .map((e) => ({ name: e.name, isDir: e.isDirectory() }))
+              .sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1));
+          } catch {
+            return;
+          }
+          for (let i = 0; i < list.length && count < LIST_DIR_RECURSIVE_MAX_ENTRIES; count++, i++) {
+            const e = list[i];
+            const isLast = i === list.length - 1;
+            treeLines.push(prefix + (isLast ? "└── " : "├── ") + (e.isDir ? e.name + "/" : e.name));
+            if (e.isDir) {
+              const sub = resolve(dir, e.name);
+              if (!relative(workspace, sub).startsWith("..")) walk(sub, prefix + (isLast ? "    " : "│   "), depth + 1);
+            }
+          }
+        }
+        const label = pathArg === "." ? "Workspace root" : pathArg;
+        treeLines.push(`${label}/\n`);
+        walk(baseResolved, "", 0);
+        parts.push("## Directory tree\n\n" + treeLines.join("\n"));
+
+        for (const rel of CONTEXT_FILES) {
+          const full = pathArg === "." ? rel : join(pathArg, rel);
+          const resolved = resolveInWorkspace(workspace, full);
+          if (!resolved || !isInside(workspace, resolved) || !existsSync(resolved)) continue;
+          try {
+            const stat = statSync(resolved);
+            if (!stat.isFile()) continue;
+            let content = readFileSync(resolved, "utf-8");
+            const lines = content.split(/\r?\n/);
+            if (lines.length > WORKSPACE_CONTEXT_MAX_LINES) {
+              content = lines.slice(0, WORKSPACE_CONTEXT_MAX_LINES).join("\n") + `\n\n... (${lines.length - WORKSPACE_CONTEXT_MAX_LINES} more lines)`;
+            }
+            parts.push(`## ${full}\n\n\`\`\`\n${content}\n\`\`\``);
+          } catch {
+            /* skip */
+          }
+        }
+
+        return parts.join("\n\n") || "No content.";
+      } catch (err: unknown) {
+        return `Error: ${err instanceof Error ? err.message : String(err)}`;
+      }
     },
   };
 }

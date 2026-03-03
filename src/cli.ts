@@ -25,12 +25,17 @@ import { createLocalWhisperSTT, createElevenLabsSTT } from "./voice/stt.js";
 import { createKnowledgeSearchTool, createKnowledgeAddTool } from "./tools/knowledge.js";
 import { createGoogleSearchTool } from "./tools/google-search.js";
 import { createDuckDuckGoSearchTool } from "./tools/duckduckgo-search.js";
+import { createFetchPageTool } from "./tools/fetch-page.js";
+import { createOpenUrlTool } from "./tools/open-url.js";
+import { createTranscribeVideoTool } from "./tools/transcribe-video.js";
+import { createBrowserAutomateTool } from "./tools/browser.js";
 import {
   createReadFileTool,
   createWriteFileTool,
   createListDirTool,
   createSearchInFilesTool,
   createApplyPatchTool,
+  createWorkspaceContextTool,
 } from "./tools/code.js";
 import { createBackup, listBackups, restoreBackup } from "./backup.js";
 import { createRunScriptTool } from "./tools/run-script.js";
@@ -76,6 +81,7 @@ async function bootstrap() {
   if (shouldRegister("list_dir")) registry.register(createListDirTool(config.OPENPAW_WORKSPACE));
   if (shouldRegister("search_in_files")) registry.register(createSearchInFilesTool(config.OPENPAW_WORKSPACE));
   if (shouldRegister("apply_patch")) registry.register(createApplyPatchTool(config.OPENPAW_WORKSPACE));
+  if (shouldRegister("workspace_context")) registry.register(createWorkspaceContextTool(config.OPENPAW_WORKSPACE));
   if (shouldRegister("run_script")) registry.register(createRunScriptTool(config.OPENPAW_SCRIPTS_DIR ?? config.OPENPAW_DATA_DIR + "/scripts"));
   if (shouldRegister("nmap_scan")) registry.register(createNmapScanTool());
   if (shouldRegister("wireless_scan")) registry.register(createWirelessScanTool());
@@ -98,9 +104,15 @@ async function bootstrap() {
   if (knowledgeSearch && shouldRegister(knowledgeSearch.name)) registry.register(knowledgeSearch);
   if (knowledgeAdd && shouldRegister(knowledgeAdd.name)) registry.register(knowledgeAdd);
 
+  // Web search: DuckDuckGo by default (no API, works out of the box). If Google keys are set, use Google instead.
   const googleSearch = createGoogleSearchTool(config);
   if (googleSearch && shouldRegister(googleSearch.name)) registry.register(googleSearch);
   else if (shouldRegister("web_search")) registry.register(createDuckDuckGoSearchTool());
+  if (shouldRegister("fetch_page")) registry.register(createFetchPageTool());
+  if (shouldRegister("open_url")) registry.register(createOpenUrlTool());
+  if (shouldRegister("transcribe_video")) registry.register(createTranscribeVideoTool(config));
+  const browserTool = await createBrowserAutomateTool();
+  if (browserTool && shouldRegister(browserTool.name)) registry.register(browserTool);
 
   const mode = config.OPENPAW_AGENT_MODE;
   const llm = mode === "react" ? createReActLLM(config, registry) : createLLM(config);

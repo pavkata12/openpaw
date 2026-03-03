@@ -5,6 +5,7 @@ import { createSessionManager } from "./session.js";
 import { createLaneQueue } from "./lane-queue.js";
 import type { InboundMessage, ChannelAdapter, SendContext } from "./channels/types.js";
 import { sessionContext } from "./session-context.js";
+import { summarizeSessionContext } from "./session-summarizer.js";
 import type { Config } from "./config.js";
 import { OPENPAW_NEEDS_APPROVAL_PREFIX } from "./tools/shell.js";
 import { startBackgroundJob } from "./background-jobs.js";
@@ -181,6 +182,7 @@ export async function createRouter(deps: RouterDeps) {
           onBeforeToolCall,
           ...(effectiveSuffix != null ? { systemPromptSuffix: effectiveSuffix } : {}),
           ...(effectiveOverride != null ? { systemPromptOverride: effectiveOverride } : {}),
+          sessionSummaryFn: (h) => summarizeSessionContext(llm, h),
         })
       );
       let replyToUser = reply;
