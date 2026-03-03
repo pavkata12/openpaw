@@ -96,3 +96,54 @@
   4. **Канали:** няма WhatsApp, Slack, Signal, iMessage; има CLI, web, Discord, Telegram (+ voice в Telegram).  
 
 - **Специфично за Kali:** По отношение на **готови Kali tools**, **engagements + TARGET.md**, **session persistence**, **SOUL.md**, **audit + dashboard**, **voice в Telegram** и **тестове** OpenPaw е на калибър или пред OpenClaw за типичен един оператор / полеви сценарии. OpenClaw води по много канали, governance и единен JSON конфиг.
+
+---
+
+## 4. Dashboard / Control UI — съпоставка и подобрения
+
+### Какво има OpenClaw (официален Control UI + community dashboards)
+
+**Официален Control UI (Gateway):**
+- Chat с stream, abort, inject; live tool output
+- Config: schema + form, raw JSON, apply + restart
+- Logs: live tail, filter, export
+- Debug: status, health, models, event log, RPC
+- Cron: list/add/edit/run, run history
+- Sessions: list, per-session overrides
+- Channels: status, QR login, per-channel config
+- Skills: status, enable/disable, install
+- Exec approvals, Nodes, Update (package + restart)
+- Auth: token/password, device pairing
+
+**Community (mudrii/openclaw-dashboard):**
+- 11 панела: health, cost cards, cron, active sessions, token usage, sub-agent activity, charts, models/skills/git, AI chat
+- Темы (6), auto-refresh, glass morphism
+
+### Какво има OpenPaw dashboard (сега)
+
+| Функция | Статус |
+|--------|--------|
+| Chat (web) | Да |
+| Voice (отделна страница) | Да |
+| Workspace (engagement) selector | Да |
+| Recent activity (последни 5 tool calls) | Да |
+| Audit log (пълен преглед) | Да |
+| Scheduled tasks (списък, enable/disable) | Да |
+| Health карта (status, uptime, model, channels) | Да |
+| Quick actions (Voice, Tasks, Audit, History) | Да |
+| Config (JSON, сгъваем) | Да |
+| Version в header | Да |
+| **Sessions** (списък активни сесии, message count, last activity) | Да |
+| **Theme picker** (Dark / Light в header, localStorage) | Да |
+| **Auto-refresh** (на всеки 30s за health + activity + sessions) | Да |
+| **Key settings** (read-only: model, dataDir, pack, workspace, Discord, Telegram) | Да |
+| **Auth** (OPENPAW_DASHBOARD_TOKEN → ?token=… / Bearer / X-Dashboard-Token) | Да |
+
+### Подобрения за бъдеще (по желание)
+
+- ~~**Live logs**~~ — имплементирано: на страница Audit log има „Live (every 5s)“ (poll) и „Stream (SSE)“; GET /api/audit/stream изпраща snapshot + нови записи в реално време.
+- ~~Sessions list~~ — имплементирано.
+- ~~Theme picker~~ — имплементирано (dark/light).
+- ~~Auto-refresh~~ — имплементирано (30s, с toggle).
+- ~~Config form~~ — имплементиран read-only Key settings; пълен form/редактор по желание.
+- ~~Auth за dashboard~~ — имплементиран опционален OPENPAW_DASHBOARD_TOKEN.

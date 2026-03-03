@@ -84,6 +84,8 @@ const EnvSchema = z.object({
   ELEVENLABS_STT_MODEL_ID: z.string().default("scribe_v2"),
   /** ElevenLabs STT language code (e.g. "bg" for Bulgarian). Optional. */
   ELEVENLABS_STT_LANGUAGE_CODE: z.string().optional(),
+  /** Optional token to protect dashboard and API. When set, requests must include token via ?token=..., Authorization: Bearer ..., or X-Dashboard-Token header. */
+  OPENPAW_DASHBOARD_TOKEN: z.string().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;
