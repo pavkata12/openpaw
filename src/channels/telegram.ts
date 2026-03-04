@@ -1,4 +1,5 @@
 import type { ChannelAdapter, InboundMessage, SendContext } from "./types.js";
+import { logger } from "../logger.js";
 
 export interface TelegramChannelOptions {
   /** When set, voice messages are downloaded, transcribed with this function, and sent to the agent as text. Reply is sent as text in chat. */
@@ -88,7 +89,7 @@ export function createTelegramChannel(
     async send(userId: string, reply: { text: string }, context?: SendContext) {
       if (!client) return;
       const chatId = (context?.channelId as string) || userId;
-      await (client as { sendMessage: (id: string, t: string) => Promise<unknown> }).sendMessage(chatId, reply.text).catch(() => {});
+      await (client as { sendMessage: (id: string, t: string) => Promise<unknown> }).sendMessage(chatId, reply.text).catch((err) => logger.error("Telegram send failed", { err: err instanceof Error ? err.message : String(err), chatId }));
     },
   };
 }

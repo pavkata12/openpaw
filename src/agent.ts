@@ -129,7 +129,7 @@ export async function runAgent(
 
     if (response.finishReason === "stop") {
       const text = response.content.trim();
-      const finalText = text || "Няма отговор от модела. Провери .env (OPENPAW_LLM_API_KEY, OPENPAW_LLM_MODEL) и конзолата на сървъра.";
+      const finalText = text || "No response from the model. Check .env (OPENPAW_LLM_API_KEY, OPENPAW_LLM_MODEL) and the server console.";
 
       if (options?.verifyCompletion && text) {
         try {

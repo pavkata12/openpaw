@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import { logger } from "./logger.js";
 import type { Message } from "./llm.js";
 import type { Session, SessionKey } from "./session.js";
 
@@ -33,7 +34,8 @@ export async function loadSessions(
       });
     }
     return map;
-  } catch {
+  } catch (err) {
+    logger.error("loadSessions failed", { filePath, err: err instanceof Error ? err.message : String(err) });
     return new Map();
   }
 }
@@ -56,5 +58,10 @@ export async function saveSessions(
   }
   const dir = dirname(filePath);
   await mkdir(dir, { recursive: true });
-  await writeFile(filePath, JSON.stringify(obj, null, 2), "utf-8");
+  try {
+    await writeFile(filePath, JSON.stringify(obj, null, 2), "utf-8");
+  } catch (err) {
+    logger.error("saveSessions failed", { filePath, err: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
 }

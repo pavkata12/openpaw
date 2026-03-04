@@ -21,6 +21,8 @@ const EnvSchema = z.object({
   OPENPAW_LLM_RETRY_COUNT: z.coerce.number().default(2),
   /** Delay in ms before first retry; doubles each time. Default 2000. */
   OPENPAW_LLM_RETRY_DELAY_MS: z.coerce.number().default(2000),
+  /** LLM API request timeout in ms. Default 55000 (55s). Increase for slow providers (e.g. OpenRouter). */
+  OPENPAW_LLM_TIMEOUT_MS: z.coerce.number().default(55_000),
   /** Optional skill pack name (recon, wireless, web, full). When set, only pack tools + base (remember, recall, run_shell) are registered. Use "full" or leave unset for all tools. */
   OPENPAW_PACK: z.string().optional(),
   /** System prompt from workspace file: default = ignore file; append = base + SOUL.md/content; replace = only file content. */

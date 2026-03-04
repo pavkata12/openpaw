@@ -1,6 +1,7 @@
 import type { Message } from "./llm.js";
 import type { LLMAdapter } from "./llm.js";
 import { summarizeHistory as doSummarize } from "./session-summarizer.js";
+import { logger } from "./logger.js";
 
 export type SessionKey = string;
 
@@ -52,7 +53,9 @@ export function createSessionManager(options: SessionManagerOptions = {}) {
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
       saveTimeout = null;
-      flushSave().catch(() => {});
+      flushSave().catch((err) => {
+        logger.error("Session save failed", { err: err instanceof Error ? err.message : String(err) });
+      });
     }, 800);
   }
 

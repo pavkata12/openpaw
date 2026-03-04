@@ -49,6 +49,8 @@ const SYSTEM_PROMPT_BASE = `You are OpenPaw, a helpful AI assistant that runs on
 **General:** Be concise and helpful. When you use a tool, briefly say what you did. If the user asks you to count or say specific words aloud, reply with exactly those words so they can be spoken—not a description.`;
 const VOICE_SUFFIX = ` This reply will be read aloud: keep it concise and natural; avoid long lists or markdown.`;
 
+const DEFAULT_LLM_TIMEOUT_MS = 55_000;
+
 /** Raw completion - no system prompt. Used by ReAct adapter. */
 export async function rawCompletion(
   config: Config,
@@ -58,8 +60,9 @@ export async function rawCompletion(
   const base = config.OPENPAW_LLM_BASE_URL.replace(/\/$/, "");
   const model = config.OPENPAW_LLM_MODEL;
   const apiKey = config.OPENPAW_LLM_API_KEY;
+  const timeoutMs = config.OPENPAW_LLM_TIMEOUT_MS ?? DEFAULT_LLM_TIMEOUT_MS;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 55_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
     res = await fetch(`${base}/chat/completions`, {
@@ -74,7 +77,7 @@ export async function rawCompletion(
   } catch (e) {
     clearTimeout(timeout);
     if (e instanceof Error && e.name === "AbortError") {
-      throw new Error("LLM request timed out (55s). OpenRouter may be slow or the API key/model may be invalid.");
+      throw new Error(`LLM request timed out (${timeoutMs / 1000}s). OpenRouter may be slow or the API key/model may be invalid.`);
     }
     throw e;
   }
@@ -114,6 +117,7 @@ export function createLLM(config: Config): LLMAdapter {
 
   const retryCount = config.OPENPAW_LLM_RETRY_COUNT ?? 2;
   const retryDelayMs = config.OPENPAW_LLM_RETRY_DELAY_MS ?? 2000;
+  const timeoutMs = config.OPENPAW_LLM_TIMEOUT_MS ?? DEFAULT_LLM_TIMEOUT_MS;
 
   const adapter: LLMAdapter = {
     capabilities: { nativeToolCalling: true },
@@ -143,7 +147,7 @@ export function createLLM(config: Config): LLMAdapter {
               ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
             },
             body: JSON.stringify(body),
-            timeoutMs: 55_000,
+            timeoutMs,
           });
 
           if (!res.ok) {

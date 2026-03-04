@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ToolDefinition } from "../tools/types.js";
 import { connectMCPServer, type MCPServerConfig } from "./client.js";
+import { logger } from "../logger.js";
 
 export type { MCPServerConfig } from "./client.js";
 
@@ -59,7 +60,7 @@ export async function loadMCPTools(dataDir?: string): Promise<{ tools: ToolDefin
   return {
     tools: allTools,
     async close() {
-      for (const a of adapters) await a.close().catch(() => {});
+      for (const a of adapters) await a.close().catch((err) => logger.error("MCP adapter close failed", { err: err instanceof Error ? err.message : String(err) }));
     },
   };
 }

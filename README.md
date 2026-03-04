@@ -99,18 +99,6 @@ Environment variables (in `.env` or your shell):
 | `OPENPAW_SESSION_TTL_HOURS` | Session TTL in hours; expired sessions are not loaded or saved. | `24` |
 | `OPENPAW_SESSION_MAX_HISTORY` | Max messages per session before trimming (and before summarization if enabled). | `50` |
 | `OPENPAW_ACCESSIBILITY_MODE` | When true, the agent is instructed to act as the user's hands and eyes: do anything doable on the computer (run commands, browse, read/write files), describe actions briefly. For users who cannot see the screen or use the mouse; use with voice (`npm run voice` or Telegram voice). Limitation: visual captcha (no audio) cannot be solved. | `false` |
-<<<<<<< Current (Your changes)
-
-## Accessibility (достъпност)
-
-OpenPaw can be used **voice-first** so that a blind or motor-impaired user operates the computer entirely by speech (and hears replies). The agent has full control via tools: run any command, open sites, fill forms, read and summarize content. You speak or type; the agent does the rest.
-
-- **Voice**: `npm run voice` then open http://localhost:3780/voice (browser mic + TTS), or use **Telegram**: send voice messages to the bot, get text replies. Set `OPENPAW_STT_LANGUAGE=bulgarian` (or your language) and `OPENPAW_TTS_LANG=bg-BG` in `.env`.
-- **Accessibility mode**: In `.env` set `OPENPAW_ACCESSIBILITY_MODE=true`. The agent is then instructed to act as your hands and eyes: perform any task you ask (open a site, find a clip, read email, run a command), describe what it did in one sentence after each step, and complete the full task. Everything that can be done on the computer via commands and tools, the agent can do for you.
-- **Limitation**: Visual-only captcha (with no audio alternative) cannot be solved; the agent will say so and suggest alternatives (e.g. another site, or you ask a sighted person once). Audio captcha could be supported in the future (transcribe and fill).
-
-So: a blind user can use OpenPaw with voice + accessibility mode and have the agent browse, run commands, read and summarize—everything except solving visual captchas.
-=======
 | `OPENPAW_AGENT_MAX_TURNS` | Max tool-calling turns per request (plan + execute until done or this limit). Default 20; increase (e.g. 25–30) for long-horizon tasks so the agent can complete multi-step requests without hitting the limit. | `20` |
 | `OPENPAW_AGENT_COMPLETION_REMINDER` | When true (default), after each tool result a short reminder is injected so the agent continues until the task is fully done (reduces early stopping: e.g. "found the link" but not opening it). Set to `false` to disable. | `true` |
 | `OPENPAW_AGENT_VERIFY_COMPLETION` | When true, when the agent returns a final reply we ask the LLM once "Is the user's request fully satisfied?" (YES/NO). If NO, the agent continues for another turn. Adds one extra LLM call per completion; use for important long tasks. | `false` |

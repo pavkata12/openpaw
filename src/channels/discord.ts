@@ -1,5 +1,6 @@
 import type { ChannelAdapter, InboundMessage, SendContext } from "./types.js";
 import { GatewayIntentBits } from "discord-api-types/v10";
+import { logger } from "../logger.js";
 
 export function createDiscordChannel(token: string, allowedUserIds?: string[]): ChannelAdapter {
   let handler: ((msg: InboundMessage) => void | Promise<void>) | null = null;
@@ -53,10 +54,10 @@ export function createDiscordChannel(token: string, allowedUserIds?: string[]): 
       const chId = context?.channelId as string | undefined;
       if (chId) {
         const ch = await c.channels.fetch(chId).catch(() => null);
-        if (ch?.send) await ch.send({ content: reply.text }).catch(() => {});
+        if (ch?.send) await ch.send({ content: reply.text }).catch((err) => logger.error("Discord channel send failed", { err: err instanceof Error ? err.message : String(err), channelId: chId }));
       } else {
         const user = await c.users.fetch(userId).catch(() => null);
-        if (user) await user.send(reply.text).catch(() => {});
+        if (user) await user.send(reply.text).catch((err) => logger.error("Discord DM send failed", { err: err instanceof Error ? err.message : String(err), userId }));
       }
     },
   };

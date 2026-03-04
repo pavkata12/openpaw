@@ -11,6 +11,7 @@ import type { DelegateHistoryRef } from "./tools/delegate-agent.js";
 import { OPENPAW_NEEDS_APPROVAL_PREFIX } from "./tools/shell.js";
 import { startBackgroundJob } from "./background-jobs.js";
 import { loadSessions } from "./session-store.js";
+import { logger } from "./logger.js";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -84,7 +85,22 @@ export async function createRouter(deps: RouterDeps) {
 
   function registerChannel(adapter: ChannelAdapter): void {
     channels.set(adapter.name, adapter);
-    adapter.onMessage((msg) => handleMessage(adapter.name, msg).catch(() => {}));
+    adapter.onMessage((msg) => {
+      handleMessage(adapter.name, msg).catch((err) => {
+        logger.error("handleMessage failed", {
+          err: err instanceof Error ? err.message : String(err),
+          adapterName: adapter.name,
+          userId: msg.userId,
+        });
+        const ad = channels.get(adapter.name);
+        const context: SendContext | undefined = msg.metadata
+          ? { ...msg.metadata, channelId: msg.metadata.channelId as string | undefined }
+          : undefined;
+        if (ad) {
+          ad.send(msg.userId, { text: "An error occurred. Please try again or check the server logs." }, context).catch(() => {});
+        }
+      });
+    });
   }
 
   async function handleMessage(adapterName: string, msg: InboundMessage): Promise<void> {
