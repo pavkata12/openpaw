@@ -1,11 +1,11 @@
 import { existsSync, writeFileSync, mkdirSync, readdirSync, readFileSync, copyFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig } from "./config.js";
+import { loadConfig, ACCESSIBILITY_PROMPT_SUFFIX } from "./config.js";
 import { createLLM, createSecondLLM } from "./llm.js";
 import { createReActLLM } from "./agent/react.js";
 import { runAgent } from "./agent.js";
-import { createDelegateToAgentTool, DELEGATE_TO_AGENT_NAME } from "./tools/delegate-agent.js";
+import { createDelegateToAgentTool, DELEGATE_TO_AGENT_NAME, DELEGATE_EXECUTOR_SUFFIX } from "./tools/delegate-agent.js";
 import { createToolRegistry } from "./tools/registry.js";
 import { createMemoryTool, createRecallTool } from "./tools/memory.js";
 import { createShellTool } from "./tools/shell.js";
@@ -28,8 +28,9 @@ import { createGoogleSearchTool } from "./tools/google-search.js";
 import { createDuckDuckGoSearchTool } from "./tools/duckduckgo-search.js";
 import { createFetchPageTool } from "./tools/fetch-page.js";
 import { createOpenUrlTool } from "./tools/open-url.js";
+import { createPlayMediaTool } from "./tools/play-media.js";
 import { createTranscribeVideoTool } from "./tools/transcribe-video.js";
-import { createBrowserAutomateTool } from "./tools/browser.js";
+import { createBrowserAutomateTool, createBrowserOpenAndReadTool } from "./tools/browser.js";
 import {
   createReadFileTool,
   createWriteFileTool,
@@ -111,34 +112,113 @@ async function bootstrap() {
   else if (shouldRegister("web_search")) registry.register(createDuckDuckGoSearchTool());
   if (shouldRegister("fetch_page")) registry.register(createFetchPageTool());
   if (shouldRegister("open_url")) registry.register(createOpenUrlTool());
+  if (shouldRegister("play_media")) registry.register(createPlayMediaTool(config.OPENPAW_WORKSPACE));
   if (shouldRegister("transcribe_video")) registry.register(createTranscribeVideoTool(config));
   const browserTool = await createBrowserAutomateTool();
   if (browserTool && shouldRegister(browserTool.name)) registry.register(browserTool);
+  const browserReadTool = await createBrowserOpenAndReadTool();
+  if (browserReadTool && shouldRegister(browserReadTool.name)) registry.register(browserReadTool);
 
   const mode = config.OPENPAW_AGENT_MODE;
   const llm = mode === "react" ? createReActLLM(config, registry) : createLLM(config);
   const llm2 = createSecondLLM(config);
-  if (llm2) {
+  const delegateHistoryRef = llm2 ? { history: [] as Array<{ request: string; response: string }> } : undefined;
+  if (llm2 && delegateHistoryRef) {
+    const maxContext = config.OPENPAW_DELEGATE_MAX_CONTEXT_EXCHANGES ?? 5;
+    const buildMessageWithContext = (
+      message: string,
+      context: Array<{ request: string; response: string }>
+    ): string => {
+      if (context.length === 0) return message;
+      const block =
+        "Previous exchanges with the primary agent:\n\n" +
+        context
+          .map((e) => `Primary asked: ${e.request}\n\nYou replied: ${e.response}`)
+          .join("\n\n---\n\n") +
+        "\n\n---\n\nNew request: " +
+        message;
+      return block;
+    };
     registry.register(
-      createDelegateToAgentTool((message) =>
-        runAgent(llm2, registry, message, [], { excludeToolNames: [DELEGATE_TO_AGENT_NAME] })
+      createDelegateToAgentTool(
+        (message, context) =>
+          runAgent(llm2, registry, buildMessageWithContext(message, context), [], {
+            excludeToolNames: [DELEGATE_TO_AGENT_NAME],
+            systemPromptSuffix: DELEGATE_EXECUTOR_SUFFIX,
+          }),
+        delegateHistoryRef,
+        maxContext
       )
     );
   }
-  return { config, llm, registry, mcpClose: mcp.close, pack };
+  return { config, llm, registry, mcpClose: mcp.close, pack, delegateHistoryRef };
+}
+
+function buildSystemPromptSuffix(config: { OPENPAW_ACCESSIBILITY_MODE?: boolean }, packSuffix?: string): string | undefined {
+  const parts: string[] = [];
+  if (packSuffix) parts.push(packSuffix);
+  if (config.OPENPAW_ACCESSIBILITY_MODE) parts.push(ACCESSIBILITY_PROMPT_SUFFIX);
+  return parts.length ? parts.join("\n\n") : undefined;
 }
 
 export async function chatSession() {
-  const { config, llm, registry, pack } = await bootstrap();
-  const router = await createRouter({ llm, tools: registry, config, systemPromptSuffix: pack?.systemPromptSuffix });
+  const { config, llm, registry, pack, delegateHistoryRef } = await bootstrap();
+  const router = await createRouter({
+    llm,
+    tools: registry,
+    config,
+    systemPromptSuffix: buildSystemPromptSuffix(config, pack?.systemPromptSuffix),
+    delegateHistoryRef,
+  });
   const cli = createCLIChannel();
   router.registerChannel(cli);
   await cli.start();
 }
 
+/** Run one user message through the agent and print the reply (for testing: self-prompt, dual LLM, completion reminder, verify). */
+export async function oneShotChatSession(prompt: string) {
+  const { config, llm, registry, pack, delegateHistoryRef } = await bootstrap();
+  const router = await createRouter({
+    llm,
+    tools: registry,
+    config,
+    systemPromptSuffix: buildSystemPromptSuffix(config, pack?.systemPromptSuffix),
+    delegateHistoryRef,
+  });
+  let replyCapture: string | null = null;
+  const oneShotAdapter: import("./channels/types.js").ChannelAdapter = {
+    name: "oneshot",
+    onMessage(handler) {
+      (oneShotAdapter as { _handler?: (m: import("./channels/types.js").InboundMessage) => void })._handler = handler;
+    },
+    async send(_userId, { text }) {
+      replyCapture = text;
+      console.log("\n  Paw:", text);
+      console.log("");
+      process.exit(0);
+    },
+    async start() {},
+  };
+  router.registerChannel(oneShotAdapter);
+  await new Promise((r) => setImmediate(r));
+  const handler = (oneShotAdapter as { _handler?: (m: import("./channels/types.js").InboundMessage) => void })._handler;
+  if (handler) {
+    await handler({ channelId: "oneshot", userId: "local", text: prompt });
+  }
+  if (replyCapture == null) {
+    await new Promise(() => {});
+  }
+}
+
 export async function gatewaySession() {
-  const { config, llm, registry, pack } = await bootstrap();
-  const router = await createRouter({ llm, tools: registry, config, systemPromptSuffix: pack?.systemPromptSuffix });
+  const { config, llm, registry, pack, delegateHistoryRef } = await bootstrap();
+  const router = await createRouter({
+    llm,
+    tools: registry,
+    config,
+    systemPromptSuffix: buildSystemPromptSuffix(config, pack?.systemPromptSuffix),
+    delegateHistoryRef,
+  });
   const cli = createCLIChannel();
   const webChannel = createWebChannel();
   const schedulerChannel = createSchedulerChannel();
@@ -181,17 +261,23 @@ export async function gatewaySession() {
     scheduler.start();
     console.log("  Scheduler: enabled");
   }
-  startDashboard({ config, llm, registry, webChannel });
+  startDashboard({ config, llm, registry, webChannel, delegateHistoryRef });
   console.log("\n  Gateway: http://localhost:3780 (dashboard + voice)\n");
   await cli.start();
 }
 
 export async function voiceSession() {
-  const { config, llm, registry, pack } = await bootstrap();
-  const router = await createRouter({ llm, tools: registry, config, systemPromptSuffix: pack?.systemPromptSuffix });
+  const { config, llm, registry, pack, delegateHistoryRef } = await bootstrap();
+  const router = await createRouter({
+    llm,
+    tools: registry,
+    config,
+    systemPromptSuffix: buildSystemPromptSuffix(config, pack?.systemPromptSuffix),
+    delegateHistoryRef,
+  });
   const webChannel = createWebChannel();
   router.registerChannel(webChannel);
-  startDashboard({ config, llm, registry, webChannel });
+  startDashboard({ config, llm, registry, webChannel, delegateHistoryRef });
   console.log("\n  OpenPaw voice: http://localhost:3780/voice");
   console.log("  Mic → Whisper (local) → LLM → browser TTS. Conversation memory enabled.\n");
 }
@@ -270,6 +356,13 @@ async function doctor() {
   console.log("  Data dir:", config.OPENPAW_DATA_DIR);
   console.log("  LLM:", config.OPENPAW_LLM_BASE_URL, "|", config.OPENPAW_LLM_MODEL);
   console.log("  API key:", config.OPENPAW_LLM_API_KEY ? config.OPENPAW_LLM_API_KEY.slice(0, 12) + "…" : "(none)");
+  const llm2Base = config.OPENPAW_LLM_2_BASE_URL?.trim();
+  const llm2Model = config.OPENPAW_LLM_2_MODEL?.trim();
+  if (llm2Base && llm2Model) {
+    console.log("  LLM 2 (dual-agent):", llm2Base, "|", llm2Model, "— delegate_to_agent enabled");
+  } else {
+    console.log("  LLM 2 (dual-agent): (not set — add OPENPAW_LLM_2_BASE_URL and OPENPAW_LLM_2_MODEL in .env for delegate_to_agent)");
+  }
 
   const issues: string[] = [];
   if (!config.OPENPAW_LLM_API_KEY && config.OPENPAW_LLM_BASE_URL.includes("api.openai.com")) {
@@ -459,6 +552,11 @@ function main() {
     return;
   }
   if (c === "chat" || c === "") {
+    const oneShotArg = process.argv[3];
+    if (oneShotArg) {
+      oneShotChatSession(oneShotArg);
+      return;
+    }
     chatSession();
     return;
   }

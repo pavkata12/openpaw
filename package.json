@@ -17,7 +17,8 @@
     "dashboard": "node dist/dashboard.js",
     "start:dashboard": "node dist/dashboard.js",
     "onboard": "node dist/cli.js onboard",
-    "test": "npm run build && node --test tests/run-script.test.mjs tests/nmap-scan.test.mjs tests/shell.test.mjs tests/audit.test.mjs tests/session-store.test.mjs",
+    "test": "npm run build && node --test tests/run-script.test.mjs tests/nmap-scan.test.mjs tests/shell.test.mjs tests/audit.test.mjs tests/session-store.test.mjs tests/agent-verify.test.mjs",
+    "test:all": "npm run test && node dist/cli.js doctor",
     "test:voice": "node scripts/test-voice.mjs",
     "test:llm": "node scripts/test-llm.mjs"
   },

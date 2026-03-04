@@ -2,11 +2,11 @@ import { createServer } from "node:http";
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig } from "./config.js";
+import { loadConfig, ACCESSIBILITY_PROMPT_SUFFIX } from "./config.js";
 import { createLLM, createSecondLLM } from "./llm.js";
 import { createReActLLM } from "./agent/react.js";
 import { runAgent } from "./agent.js";
-import { createDelegateToAgentTool, DELEGATE_TO_AGENT_NAME } from "./tools/delegate-agent.js";
+import { createDelegateToAgentTool, DELEGATE_TO_AGENT_NAME, DELEGATE_EXECUTOR_SUFFIX, type DelegateHistoryRef } from "./tools/delegate-agent.js";
 import { createToolRegistry } from "./tools/registry.js";
 import { createMemoryTool, createRecallTool } from "./tools/memory.js";
 import { createShellTool } from "./tools/shell.js";
@@ -25,6 +25,7 @@ import { createNiktoScanTool } from "./tools/nikto-scan.js";
 import { createDuckDuckGoSearchTool } from "./tools/duckduckgo-search.js";
 import { createFetchPageTool } from "./tools/fetch-page.js";
 import { createOpenUrlTool } from "./tools/open-url.js";
+import { createPlayMediaTool } from "./tools/play-media.js";
 import { createTranscribeVideoTool } from "./tools/transcribe-video.js";
 import { createLocalWhisperSTT, createElevenLabsSTT } from "./voice/stt.js";
 import type { ChannelAdapter } from "./channels/types.js";
@@ -1044,12 +1045,15 @@ export interface DashboardDeps {
   llm: Awaited<ReturnType<typeof createLLM>>;
   registry: ReturnType<typeof createToolRegistry>;
   webChannel: ChannelAdapter & { sendMessage(userId: string, text: string): Promise<string> };
+  /** When set (dual-agent from CLI), passed to runAgent for delegate context across exchanges. */
+  delegateHistoryRef?: DelegateHistoryRef;
 }
 
 export function startDashboard(deps?: DashboardDeps) {
   const config = deps?.config ?? loadConfig();
   const dataDir = config.OPENPAW_DATA_DIR;
   const registry = deps?.registry ?? createToolRegistry();
+  let delegateHistoryRef: DelegateHistoryRef | undefined = deps?.delegateHistoryRef;
   if (!deps?.registry) {
     const dangerPatterns =
       config.OPENPAW_DANGER_APPROVAL && config.OPENPAW_DANGER_PATTERNS
@@ -1072,12 +1076,33 @@ export function startDashboard(deps?: DashboardDeps) {
     registry.register(createDuckDuckGoSearchTool());
     registry.register(createFetchPageTool());
     registry.register(createOpenUrlTool());
+    registry.register(createPlayMediaTool(config.OPENPAW_WORKSPACE));
     registry.register(createTranscribeVideoTool(config));
     const llm2 = createSecondLLM(config);
     if (llm2) {
+      delegateHistoryRef = { history: [] };
+      const maxContext = config.OPENPAW_DELEGATE_MAX_CONTEXT_EXCHANGES ?? 5;
+      const buildMessageWithContext = (
+        message: string,
+        context: Array<{ request: string; response: string }>
+      ): string => {
+        if (context.length === 0) return message;
+        return (
+          "Previous exchanges with the primary agent:\n\n" +
+          context.map((e) => `Primary asked: ${e.request}\n\nYou replied: ${e.response}`).join("\n\n---\n\n") +
+          "\n\n---\n\nNew request: " +
+          message
+        );
+      };
       registry.register(
-        createDelegateToAgentTool((message) =>
-          runAgent(llm2, registry, message, [], { excludeToolNames: [DELEGATE_TO_AGENT_NAME] })
+        createDelegateToAgentTool(
+          (message, context) =>
+            runAgent(llm2, registry, buildMessageWithContext(message, context), [], {
+              excludeToolNames: [DELEGATE_TO_AGENT_NAME],
+              systemPromptSuffix: DELEGATE_EXECUTOR_SUFFIX,
+            }),
+          delegateHistoryRef,
+          maxContext
         )
       );
     }
@@ -1407,7 +1432,14 @@ export function startDashboard(deps?: DashboardDeps) {
           const send = webChannel as { sendMessage(userId: string, text: string, metadata?: Record<string, unknown>): Promise<string> };
           reply = await send.sendMessage(userId, text, voice ? { voice: true } : undefined);
         } else {
-          reply = await runAgent(llm, registry, text, [], voice ? { voice: true } : undefined);
+          reply = await runAgent(llm, registry, text, [], {
+            ...(voice ? { voice: true } : {}),
+            ...(config.OPENPAW_ACCESSIBILITY_MODE ? { systemPromptSuffix: ACCESSIBILITY_PROMPT_SUFFIX } : {}),
+            maxTurns: config.OPENPAW_AGENT_MAX_TURNS,
+            completionReminder: config.OPENPAW_AGENT_COMPLETION_REMINDER,
+            verifyCompletion: config.OPENPAW_AGENT_VERIFY_COMPLETION,
+            ...(delegateHistoryRef != null ? { delegateHistoryRef } : {}),
+          });
         }
 
         res.writeHead(200, { "Content-Type": "application/json" });

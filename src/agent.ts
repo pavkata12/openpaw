@@ -2,8 +2,22 @@ import type { LLMAdapter, Message, ToolSpec } from "./llm.js";
 import type { ToolRegistry } from "./tools/types.js";
 import { logToolCall } from "./audit.js";
 
-const MAX_TURNS = 10;
+const MAX_TURNS_DEFAULT = 20;
 const SESSION_SUMMARY_THRESHOLD = 8;
+/** Injected after each tool result when completion reminder is on, to reduce early stopping (research: persistence reminders improve multi-step completion). */
+const COMPLETION_REMINDER =
+  "\n\n[Reminder: Only reply to the user with a final answer when their request is fully completed. If you still need to do something (e.g. open the link, play the media, summarize the page, add to cart), call a tool now. Do not stop with partial results like \"here is the link\"—finish the action, then reply.]";
+
+const VERIFY_PROMPT = (userRequest: string, assistantReply: string) =>
+  `Original user request: ${userRequest}\n\nAssistant's final reply to the user: ${assistantReply}\n\nIs the user's request fully satisfied (everything they asked for has been done)? Reply with exactly YES or NO.`;
+
+/** Exported for tests. Returns true if the verification reply indicates the task is complete (YES). */
+export function isVerifiedYes(content: string): boolean {
+  const t = content.trim().toUpperCase();
+  if (t === "YES") return true;
+  if (t.startsWith("YES") && !t.includes("NO")) return true;
+  return false;
+}
 const SESSION_SUMMARY_LAST_N = 10;
 const SESSION_SUMMARY_SNIPPET = 70;
 
@@ -64,6 +78,14 @@ export interface RunAgentOptions {
   sessionSummaryFn?: (history: Message[]) => Promise<string>;
   /** Tool names to hide from this run (e.g. delegate_to_agent when running the second agent to avoid recursion). */
   excludeToolNames?: string[];
+  /** Max tool-calling turns (plan + execute) before returning. Default 20. */
+  maxTurns?: number;
+  /** When true (default), append a short reminder after each tool result so the agent continues until the task is fully done. Set false to disable. */
+  completionReminder?: boolean;
+  /** When true, when the agent returns "stop" we ask the LLM once if the user's request is fully satisfied (YES/NO). If NO, inject a message and continue for another turn. Adds one extra LLM call per completion. */
+  verifyCompletion?: boolean;
+  /** When set (dual-agent), cleared at the start of each top-level run so the second agent gets fresh context for the new request; the delegate tool appends each exchange here so later delegate calls in the same run see previous ones. */
+  delegateHistoryRef?: { history: Array<{ request: string; response: string }> };
 }
 
 export async function runAgent(
@@ -73,6 +95,7 @@ export async function runAgent(
   conversationHistory: Message[] = [],
   options?: RunAgentOptions
 ): Promise<string> {
+  if (options?.delegateHistoryRef) options.delegateHistoryRef.history = [];
   let effectiveUserMessage = userMessage;
   if (conversationHistory.length >= SESSION_SUMMARY_THRESHOLD) {
     let summary = "";
@@ -98,12 +121,34 @@ export async function runAgent(
     ...(options?.systemPromptOverride != null ? { systemPromptOverride: options.systemPromptOverride } : {}),
   };
 
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
+  const maxTurns = options?.maxTurns ?? MAX_TURNS_DEFAULT;
+  const useCompletionReminder = options?.completionReminder !== false;
+
+  for (let turn = 0; turn < maxTurns; turn++) {
     const response = await llm.chat(messages, toolSpecs.length ? toolSpecs : undefined, Object.keys(chatOptions).length ? chatOptions : undefined);
 
     if (response.finishReason === "stop") {
       const text = response.content.trim();
-      return text || "Няма отговор от модела. Провери .env (OPENPAW_LLM_API_KEY, OPENPAW_LLM_MODEL) и конзолата на сървъра.";
+      const finalText = text || "Няма отговор от модела. Провери .env (OPENPAW_LLM_API_KEY, OPENPAW_LLM_MODEL) и конзолата на сървъра.";
+
+      if (options?.verifyCompletion && text) {
+        try {
+          const verifyMessages: Message[] = [{ role: "user", content: VERIFY_PROMPT(userMessage, text.slice(0, 2000)) }];
+          const verifyResponse = await llm.chat(verifyMessages);
+          const verifyContent = verifyResponse.finishReason === "stop" ? verifyResponse.content.trim() : "";
+          if (!isVerifiedYes(verifyContent)) {
+            messages.push({ role: "assistant", content: response.content || "" });
+            messages.push({
+              role: "user",
+              content: "[Verification: The task is not yet complete. Continue with the next step—use a tool if something is still missing, then give a final reply.]",
+            });
+            continue;
+          }
+        } catch {
+          /* on verify error, accept the reply and return */
+        }
+      }
+      return finalText;
     }
 
     if (response.finishReason !== "tool_calls" || !response.toolCalls?.length) {
@@ -144,12 +189,15 @@ export async function runAgent(
           { toolName: tc.name, args: toolArgs, resultSummary: result, channel: options.channel }
         );
       }
+      const toolResultContent =
+        `[Tool result for ${tc.name}]: ${result}` +
+        (useCompletionReminder ? COMPLETION_REMINDER : "");
       messages.push({
         role: "user",
-        content: `[Tool result for ${tc.name}]: ${result}`,
+        content: toolResultContent,
       });
     }
   }
 
-  return "I hit the turn limit. Try a simpler request.";
+  return "I hit the turn limit (" + maxTurns + " steps). Try a simpler request or increase OPENPAW_AGENT_MAX_TURNS.";
 }

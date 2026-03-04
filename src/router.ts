@@ -7,6 +7,7 @@ import type { InboundMessage, ChannelAdapter, SendContext } from "./channels/typ
 import { sessionContext } from "./session-context.js";
 import { summarizeSessionContext } from "./session-summarizer.js";
 import type { Config } from "./config.js";
+import type { DelegateHistoryRef } from "./tools/delegate-agent.js";
 import { OPENPAW_NEEDS_APPROVAL_PREFIX } from "./tools/shell.js";
 import { startBackgroundJob } from "./background-jobs.js";
 import { loadSessions } from "./session-store.js";
@@ -36,10 +37,12 @@ export interface RouterDeps {
   config?: Config;
   /** Optional system prompt suffix (e.g. from skill pack). */
   systemPromptSuffix?: string;
+  /** When set (dual-agent), passed to runAgent so delegate history is cleared per request and the delegate tool can accumulate exchanges. */
+  delegateHistoryRef?: DelegateHistoryRef;
 }
 
 export async function createRouter(deps: RouterDeps) {
-  const { llm, tools, config, systemPromptSuffix } = deps;
+  const { llm, tools, config, systemPromptSuffix, delegateHistoryRef } = deps;
   const summarizeThreshold = config?.OPENPAW_HISTORY_SUMMARIZE_THRESHOLD ?? 0;
   const keepRaw = config?.OPENPAW_HISTORY_KEEP_RAW ?? 10;
   const ttlHours = config?.OPENPAW_SESSION_TTL_HOURS ?? 24;
@@ -183,6 +186,10 @@ export async function createRouter(deps: RouterDeps) {
           ...(effectiveSuffix != null ? { systemPromptSuffix: effectiveSuffix } : {}),
           ...(effectiveOverride != null ? { systemPromptOverride: effectiveOverride } : {}),
           sessionSummaryFn: (h) => summarizeSessionContext(llm, h),
+          maxTurns: config?.OPENPAW_AGENT_MAX_TURNS,
+          completionReminder: config?.OPENPAW_AGENT_COMPLETION_REMINDER,
+          verifyCompletion: config?.OPENPAW_AGENT_VERIFY_COMPLETION,
+          ...(delegateHistoryRef != null ? { delegateHistoryRef } : {}),
         })
       );
       let replyToUser = reply;

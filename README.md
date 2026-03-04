@@ -98,6 +98,55 @@ Environment variables (in `.env` or your shell):
 | `OPENPAW_SYSTEM_PROMPT_MODE` | How to use workspace system prompt file: `default` = ignore; `append` = base prompt + file content; `replace` = only file content. File: `SOUL.md` or `.openpaw/system-prompt.md` in workspace. | `default` |
 | `OPENPAW_SESSION_TTL_HOURS` | Session TTL in hours; expired sessions are not loaded or saved. | `24` |
 | `OPENPAW_SESSION_MAX_HISTORY` | Max messages per session before trimming (and before summarization if enabled). | `50` |
+| `OPENPAW_ACCESSIBILITY_MODE` | When true, the agent is instructed to act as the user's hands and eyes: do anything doable on the computer (run commands, browse, read/write files), describe actions briefly. For users who cannot see the screen or use the mouse; use with voice (`npm run voice` or Telegram voice). Limitation: visual captcha (no audio) cannot be solved. | `false` |
+<<<<<<< Current (Your changes)
+
+## Accessibility (достъпност)
+
+OpenPaw can be used **voice-first** so that a blind or motor-impaired user operates the computer entirely by speech (and hears replies). The agent has full control via tools: run any command, open sites, fill forms, read and summarize content. You speak or type; the agent does the rest.
+
+- **Voice**: `npm run voice` then open http://localhost:3780/voice (browser mic + TTS), or use **Telegram**: send voice messages to the bot, get text replies. Set `OPENPAW_STT_LANGUAGE=bulgarian` (or your language) and `OPENPAW_TTS_LANG=bg-BG` in `.env`.
+- **Accessibility mode**: In `.env` set `OPENPAW_ACCESSIBILITY_MODE=true`. The agent is then instructed to act as your hands and eyes: perform any task you ask (open a site, find a clip, read email, run a command), describe what it did in one sentence after each step, and complete the full task. Everything that can be done on the computer via commands and tools, the agent can do for you.
+- **Limitation**: Visual-only captcha (with no audio alternative) cannot be solved; the agent will say so and suggest alternatives (e.g. another site, or you ask a sighted person once). Audio captcha could be supported in the future (transcribe and fill).
+
+So: a blind user can use OpenPaw with voice + accessibility mode and have the agent browse, run commands, read and summarize—everything except solving visual captchas.
+=======
+| `OPENPAW_AGENT_MAX_TURNS` | Max tool-calling turns per request (plan + execute until done or this limit). Default 20; increase (e.g. 25–30) for long-horizon tasks so the agent can complete multi-step requests without hitting the limit. | `20` |
+| `OPENPAW_AGENT_COMPLETION_REMINDER` | When true (default), after each tool result a short reminder is injected so the agent continues until the task is fully done (reduces early stopping: e.g. "found the link" but not opening it). Set to `false` to disable. | `true` |
+| `OPENPAW_AGENT_VERIFY_COMPLETION` | When true, when the agent returns a final reply we ask the LLM once "Is the user's request fully satisfied?" (YES/NO). If NO, the agent continues for another turn. Adds one extra LLM call per completion; use for important long tasks. | `false` |
+
+## Long-horizon tasks (дълги задачи до довършване)
+
+The agent is instructed to **not stop until the request is fully done**: e.g. if you ask to "find a film and play it", it must both find and play it, not just reply with the link. To support this we use: (1) a stronger system prompt (wrong: one step then reply; right: all steps then final answer), (2) **completion reminder** after each tool result (injected text reminding the model to continue if more steps are needed), (3) **configurable max turns** (`OPENPAW_AGENT_MAX_TURNS`, default 20), (4) optional **verify completion** (`OPENPAW_AGENT_VERIFY_COMPLETION=true`): when the agent says it's done, we ask the LLM once "Is the user's request fully satisfied?" (YES/NO); if NO, the agent gets one more turn. So the agent can run many steps until the task is complete or the turn limit is reached. If you see "I hit the turn limit", increase `OPENPAW_AGENT_MAX_TURNS`.
+
+## Accessibility (достъпност)
+
+**Ако си сляп, клавиатурата и екрана не ти трябват за ползване** — влизаш само с **глас**. OpenPaw може да се управлява изцяло чрез говор: казваш какво искаш, агентът го прави (отваря сайтове, чете поща, пуска команди, обобщава клипове) и ти отговаря с глас (TTS) или като текст в Telegram. Ти не пипаш нищо след като приложението е стартирано.
+
+- **Само с глас (без клавиатура, без екран):**
+  - **Telegram** (най-удобно): Настрой бота веднъж (някой ти помага да сложиш `OPENPAW_TELEGRAM_BOT_TOKEN` в `.env` и да стартираш `npm run gateway`). След това от телефона изпращаш **гласови съобщения** на бота — той транскрибира, агентът отговаря с текст (може да го четеш със screen reader или да го слушаш ако има TTS в Telegram).
+  - **Уеб глас**: `npm run voice` — някой отваря веднъж в браузъра http://localhost:3780/voice (или ти с screen reader). После говориш в микрофона, отговорът се чете с TTS — без клавиатура.
+- **Стартиране на приложението**: Клавиатурата ти трябва само веднъж — да се пусне OpenPaw (или някой да го пусне вместо теб). Може да направиш **shortcut** или **автостарт при включване** на компютъра (напр. Windows: Планировчик на задачи; Linux: systemd service), така че след рестарт да не пипаш нищо — само отваряш Telegram и говориш.
+- **Accessibility mode**: В `.env` сложи `OPENPAW_ACCESSIBILITY_MODE=true`. Агентът получава инструкция да е твоите „ръце и очи“: да прави всичко, което поискаш (сайт, поща, команди), да описва накратко всяко действие и да довършва задачата. Всичко, което може да се прави на този компютър с команди и tools, агентът може да го направи вместо теб.
+- **Ограничение**: Визуален captcha (без аудио вариант) агентът не може да реши; ще ти каже и ще предложи алтернатива (друг сайт или да помолиш някой веднъж).
+
+Обобщение: **сляп потребител ползва само глас** — без да вижда клавиатура или екран. Стартираш приложението веднъж (или с автостарт), после всичко е чрез глас в Telegram или в браузъра.
+
+## Какво може да прави агентът (при пълни tools)
+
+С всички вградени tools агентът може да прави почти всичко, което човек би направил на компютъра. Примери:
+
+| Искаш | Как го прави агентът | Tools |
+|-------|----------------------|--------|
+| **Да пусне филм или музика** | От линк (YouTube, Netflix, Spotify) отваря в браузъра; от файл на диска (филм.mp4, песен.mp3) пуска с плеъра по подразбиране. | `play_media` (url или path), `open_url` |
+| **Да търси документи** | Търси по име или съдържание в папка с документи. Задай `OPENPAW_WORKSPACE` на папката (напр. Документи) — агентът използва `list_dir` и `search_in_files`. | `list_dir`, `search_in_files`, `read_file` |
+| **Да пазарува онлайн** | Влиза в сайта, търси продукт, добавя в кошница, попълва формуляри до стъпка плащане (плащането обикновено е ръчно за сигурност). | `browser_open_and_read`, `browser_automate`, `web_search` |
+| **Да чете поща / календар** | Чете и търси в поща, показва събития. | `email_search`, `calendar_list`, `calendar_add` |
+| **Да отвори сайт и да намери нещо** | Отваря страницата, вижда линкове и текст, избира най-подходящото (клип, статия), отваря или транскрибира и обобщава. | `browser_open_and_read`, `transcribe_video`, `fetch_page` |
+| **Да пуска команди / скриптове** | Изпълнява всяка команда (при full control) или предопределени скриптове. | `run_shell`, `run_script` |
+
+За **достъпност** (само с глас): включи `OPENPAW_ACCESSIBILITY_MODE=true` и не използвай skill pack (или използвай `OPENPAW_PACK=full`) — така агентът има всички tools и може да пуска филми, да търси документи и да пазарува вместо теб.
+>>>>>>> Incoming (Background Agent changes)
 
 ## Built-in tools
 
@@ -110,6 +159,7 @@ Environment variables (in `.env` or your shell):
 - **wireless_scan** — Scan for Wi‑Fi networks (wifite). Optional `interface` (default wlan0).
 - **wireless_attack** — Run wifite attack: `attackType` wpa/wep/wps, optional wordlist and bssid.
 - **nikto_scan** — Web vulnerability scan with nikto; pass `url` (e.g. http://target:80).
+- **play_media** — Play video or music: pass a URL (YouTube, Netflix, Spotify, etc.) to open in the browser, or a local file path (e.g. movie.mp4, song.mp3) to open with the default player. Use when the user says "пусни филм/музика".
 - **read_file** — Read file contents in the workspace; optional line range (`startLine`, `endLine`).
 - **write_file** — Create or overwrite a file; creates parent directories if needed.
 - **list_dir** — List directory contents (explore project structure).

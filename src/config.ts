@@ -15,6 +15,8 @@ const EnvSchema = z.object({
   OPENPAW_LLM_2_BASE_URL: z.string().optional(),
   OPENPAW_LLM_2_MODEL: z.string().optional(),
   OPENPAW_LLM_2_API_KEY: z.string().optional(),
+  /** Max previous delegate exchanges to send to the second agent as context (so it can have a short dialogue). Default 5. */
+  OPENPAW_DELEGATE_MAX_CONTEXT_EXCHANGES: z.coerce.number().default(5),
   /** Number of retries on LLM API timeout or 5xx. Default 2. */
   OPENPAW_LLM_RETRY_COUNT: z.coerce.number().default(2),
   /** Delay in ms before first retry; doubles each time. Default 2000. */
@@ -51,6 +53,12 @@ const EnvSchema = z.object({
   OPENPAW_DANGER_PATTERNS: z.string().optional(),
   OPENPAW_MEMORY_MAX_ENTRIES: z.coerce.number().default(1000),
   OPENPAW_AGENT_MODE: z.enum(["native", "react", "auto"]).default("auto"),
+  /** Max tool-calling turns per request (plan + execute until done or limit). Increase for long-horizon tasks (e.g. 25–30). */
+  OPENPAW_AGENT_MAX_TURNS: z.coerce.number().default(20),
+  /** When true, after each tool result inject a short reminder so the agent continues until the task is fully done (reduces early stopping). */
+  OPENPAW_AGENT_COMPLETION_REMINDER: z.string().default("true").transform((v) => v === "1" || v === "true"),
+  /** When true, when the agent returns a final reply we ask the LLM once "Is the user's request fully satisfied?" (YES/NO). If NO, the agent continues for another turn instead of stopping. Adds one extra LLM call per completion. */
+  OPENPAW_AGENT_VERIFY_COMPLETION: z.string().default("false").transform((v) => v === "1" || v === "true"),
   OPENPAW_HISTORY_SUMMARIZE_THRESHOLD: z.coerce.number().default(20),
   OPENPAW_HISTORY_KEEP_RAW: z.coerce.number().default(10),
   /** Session TTL in hours; expired sessions are not loaded or persisted. Default 24. */
@@ -90,7 +98,12 @@ const EnvSchema = z.object({
   ELEVENLABS_STT_LANGUAGE_CODE: z.string().optional(),
   /** Optional token to protect dashboard and API. When set, requests must include token via ?token=..., Authorization: Bearer ..., or X-Dashboard-Token header. */
   OPENPAW_DASHBOARD_TOKEN: z.string().optional(),
+  /** When true, the agent is instructed to act as the user's hands and eyes: do anything doable on the computer via tools and commands, describe actions briefly (e.g. for blind or motor-impaired users). Use with voice (npm run voice or Telegram voice). */
+  OPENPAW_ACCESSIBILITY_MODE: z.string().default("false").transform((v) => v === "1" || v === "true"),
 });
+
+/** Appended to system prompt when OPENPAW_ACCESSIBILITY_MODE=true. */
+export const ACCESSIBILITY_PROMPT_SUFFIX = `**Accessibility mode:** The user may rely on you to operate the computer (e.g. they cannot see the screen or use the mouse). You are their hands and eyes: perform any requested task using your tools. In the browser you can do everything a person can: open sites (browser_open_and_read, browser_automate), fill forms (type, click, select_option, check/uncheck), scroll (up/down/top/bottom or to element), hover for dropdowns, press keys (Enter, Tab, Escape), wait for content. Use run_shell, read_file, web_search as needed. After each action, briefly say what you did in one sentence so they can follow. If something cannot be done (e.g. a visual captcha with no audio alternative), say so clearly and suggest an alternative. Complete the full task; do not stop halfway.`;
 
 export type Config = z.infer<typeof EnvSchema>;
 
