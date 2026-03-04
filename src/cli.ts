@@ -9,7 +9,7 @@ import { createDelegateToAgentTool, DELEGATE_TO_AGENT_NAME, DELEGATE_EXECUTOR_SU
 import { createToolRegistry } from "./tools/registry.js";
 import { createMemoryTool, createRecallTool } from "./tools/memory.js";
 import { createShellTool } from "./tools/shell.js";
-import { initLogger } from "./logger.js";
+import { initLogger, logger } from "./logger.js";
 import { createRouter } from "./router.js";
 import { loadMCPTools } from "./mcp/index.js";
 import { createCLIChannel } from "./channels/cli.js";
@@ -50,8 +50,10 @@ async function bootstrap() {
   const config = loadConfig();
   initLogger(config);
   const dataDir = config.OPENPAW_DATA_DIR;
-  const pack = config.OPENPAW_PACK ? await getPack(config.OPENPAW_PACK, dataDir) : null;
-  const allowedNames = getAllowedToolNames(pack);
+  // Accessibility mode: blind user says what they want, agent does it — need all tools (browser, play_media, email, etc.).
+  const useAllToolsForAccessibility = config.OPENPAW_ACCESSIBILITY_MODE;
+  const pack = !useAllToolsForAccessibility && config.OPENPAW_PACK ? await getPack(config.OPENPAW_PACK, dataDir) : null;
+  const allowedNames = useAllToolsForAccessibility ? null : getAllowedToolNames(pack);
 
   function shouldRegister(toolName: string): boolean {
     return allowedNames === null || allowedNames.has(toolName);
@@ -118,6 +120,9 @@ async function bootstrap() {
   if (browserTool && shouldRegister(browserTool.name)) registry.register(browserTool);
   const browserReadTool = await createBrowserOpenAndReadTool();
   if (browserReadTool && shouldRegister(browserReadTool.name)) registry.register(browserReadTool);
+  if (shouldRegister("browser_automate") && !browserTool) {
+    logger.warn("Browser tools not loaded (Playwright missing?). For interactive sites, episode lists, and video players run: npm install playwright && npx playwright install chromium");
+  }
 
   const mode = config.OPENPAW_AGENT_MODE;
   const llm = mode === "react" ? createReActLLM(config, registry) : createLLM(config);
@@ -150,6 +155,9 @@ async function bootstrap() {
         maxContext
       )
     );
+    logger.info("Dual-agent enabled: delegate_to_agent will use second model " + config.OPENPAW_LLM_2_MODEL);
+  } else {
+    logger.info("Dual-agent disabled. Set OPENPAW_LLM_2_BASE_URL and OPENPAW_LLM_2_MODEL in .env to enable delegate_to_agent (second agent).");
   }
   return { config, llm, registry, mcpClose: mcp.close, pack, delegateHistoryRef };
 }

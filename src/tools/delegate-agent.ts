@@ -58,9 +58,15 @@ export function createDelegateToAgentTool(
       const context = maxContextExchanges > 0
         ? delegateHistoryRef.history.slice(-maxContextExchanges)
         : [];
-      const result = await executeDelegate(fullMessage, context);
-      delegateHistoryRef.history.push({ request: fullMessage, response: result });
-      return result;
+      try {
+        const result = await executeDelegate(fullMessage, context);
+        delegateHistoryRef.history.push({ request: fullMessage, response: result });
+        return result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        delegateHistoryRef.history.push({ request: fullMessage, response: `[Delegate error: ${msg}]` });
+        return `[Second agent failed: ${msg}. Check OPENPAW_LLM_2_BASE_URL, OPENPAW_LLM_2_MODEL and OPENPAW_LLM_2_API_KEY (or OPENPAW_LLM_API_KEY) in .env.]`;
+      }
     },
   };
 }
