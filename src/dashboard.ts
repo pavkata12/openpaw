@@ -1392,6 +1392,7 @@ export async function startDashboard(deps?: DashboardDeps) {
           updatedAt: s.updatedAt,
           createdAt: s.createdAt,
           messageCount: s.history?.length ?? 0,
+          history: s.history || [],
         }));
         sessions.sort((a, b) => b.updatedAt - a.updatedAt);
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -1402,6 +1403,89 @@ export async function startDashboard(deps?: DashboardDeps) {
       }
       return;
     }
+    
+    // Get specific session
+    if (url?.match(/^\/api\/sessions\/[^\/]+$/) && req.method === "GET") {
+      try {
+        const sessionKey = url.split("/").pop() || "";
+        const sessionPath = join(dataDir, "sessions.json");
+        const ttlHours = config.OPENPAW_SESSION_TTL_HOURS ?? 24;
+        const ttlMs = ttlHours * 60 * 60 * 1000;
+        const sessionsMap = await loadSessions(sessionPath, ttlMs);
+        const session = sessionsMap.get(sessionKey);
+        
+        if (!session) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Session not found" }));
+          return;
+        }
+        
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ session }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    
+    // Delete session
+    if (url?.match(/^\/api\/sessions\/[^\/]+$/) && req.method === "DELETE") {
+      try {
+        const sessionKey = url.split("/").pop() || "";
+        const sessionPath = join(dataDir, "sessions.json");
+        const ttlHours = config.OPENPAW_SESSION_TTL_HOURS ?? 24;
+        const ttlMs = ttlHours * 60 * 60 * 1000;
+        const sessionsMap = await loadSessions(sessionPath, ttlMs);
+        
+        sessionsMap.delete(sessionKey);
+        
+        const { saveSessions } = await import("./session-store.js");
+        await saveSessions(sessionPath, sessionsMap, ttlMs);
+        
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    
+    // Rename session
+    if (url?.match(/^\/api\/sessions\/[^\/]+$/) && req.method === "PATCH") {
+      try {
+        const sessionKey = url.split("/").pop() || "";
+        const body = await parseBody(req);
+        const title = String(body.title ?? "").trim();
+        
+        const sessionPath = join(dataDir, "sessions.json");
+        const ttlHours = config.OPENPAW_SESSION_TTL_HOURS ?? 24;
+        const ttlMs = ttlHours * 60 * 60 * 1000;
+        const sessionsMap = await loadSessions(sessionPath, ttlMs);
+        const session = sessionsMap.get(sessionKey);
+        
+        if (!session) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Session not found" }));
+          return;
+        }
+        
+        // Store title in session metadata (we'll need to extend session type)
+        (session as any).title = title;
+        
+        const { saveSessions } = await import("./session-store.js");
+        await saveSessions(sessionPath, sessionsMap, ttlMs);
+        
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    
     if (url === "/api/audit/stream" && req.method === "GET") {
       const auditPath = config.OPENPAW_AUDIT_LOG && config.OPENPAW_AUDIT_LOG_PATH ? config.OPENPAW_AUDIT_LOG_PATH : null;
       function readAuditEntries(): Array<{ ts: string; tool: string; args: string; resultSummary: string; channel?: string }> {
