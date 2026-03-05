@@ -63,10 +63,49 @@ else
     print_success "Node.js 20 installed"
 fi
 
-# 3. Install Computer Use API dependencies
-print_status "Installing Computer Use API dependencies..."
-sudo apt install -y xdotool scrot imagemagick > /dev/null 2>&1
-print_success "xdotool, scrot, imagemagick installed"
+# 3. Check and install Computer Use API dependencies (REQUIRED)
+print_status "Checking Computer Use API dependencies..."
+
+REQUIRED_DEPS=(
+    "xdotool"
+    "scrot"
+    "imagemagick"
+)
+
+MISSING_DEPS=()
+
+for dep in "${REQUIRED_DEPS[@]}"; do
+    if ! command -v ${dep} &> /dev/null && ! dpkg -l | grep -q "^ii.*${dep}"; then
+        MISSING_DEPS+=("${dep}")
+    fi
+done
+
+if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+    print_warning "Missing required dependencies: ${MISSING_DEPS[*]}"
+    print_status "Installing missing dependencies..."
+    for dep in "${MISSING_DEPS[@]}"; do
+        print_status "Installing ${dep}..."
+        sudo apt install -y "${dep}" || {
+            print_error "Failed to install ${dep}!"
+            print_error "Computer Use API will not work without: xdotool, scrot, imagemagick"
+            exit 1
+        }
+    done
+    print_success "All Computer Use dependencies installed"
+else
+    print_success "All Computer Use dependencies already installed (xdotool, scrot, imagemagick)"
+fi
+
+# Verify installation
+print_status "Verifying Computer Use API tools..."
+if command -v xdotool &> /dev/null && command -v scrot &> /dev/null && command -v convert &> /dev/null; then
+    print_success "✓ xdotool: $(xdotool --version 2>&1 | head -n1)"
+    print_success "✓ scrot: installed"
+    print_success "✓ imagemagick: $(convert --version | head -n1 | awk '{print $3}')"
+else
+    print_error "Computer Use API dependencies verification failed!"
+    exit 1
+fi
 
 # 4. Install pentesting tools (optional but recommended for Kali)
 print_status "Checking pentesting tools..."
@@ -131,18 +170,76 @@ else
     print_success ".env file already exists"
 fi
 
-# 8. Create data directory
+# 8. Download LinPEAS/WinPEAS if not present
+print_status "Checking privilege escalation scripts..."
+mkdir -p .openpaw/scripts
+
+if [ ! -f ".openpaw/scripts/linpeas.sh" ]; then
+    print_status "Downloading LinPEAS..."
+    curl -sL https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -o .openpaw/scripts/linpeas.sh
+    chmod +x .openpaw/scripts/linpeas.sh
+    print_success "LinPEAS downloaded"
+else
+    print_success "LinPEAS already present"
+fi
+
+if [ ! -f ".openpaw/scripts/winPEASx64.exe" ]; then
+    print_status "Downloading WinPEAS (x64)..."
+    curl -sL https://github.com/carlospolop/PEASS-ng/releases/latest/download/winPEASx64.exe -o .openpaw/scripts/winPEASx64.exe
+    print_success "WinPEAS downloaded"
+else
+    print_success "WinPEAS already present"
+fi
+
+# 9. Create data directory
 print_status "Creating data directory..."
-mkdir -p .openpaw/{sessions,checkpoints,screenshots,reports,workflows}
+mkdir -p .openpaw/{sessions,checkpoints,screenshots,reports,workflows,scripts}
 print_success "Data directories created"
 
-# 9. Test installation
+# 10. Test installation
 print_status "Testing installation..."
 if [ -f "dist/cli.js" ]; then
     print_success "Build successful - dist/cli.js found"
 else
     print_error "Build failed - dist/cli.js not found"
     exit 1
+fi
+
+# Final system check
+print_status "Running final system check..."
+CHECKS_PASSED=0
+CHECKS_TOTAL=6
+
+# Check Node.js
+if command -v node &> /dev/null; then
+    ((CHECKS_PASSED++))
+fi
+
+# Check Computer Use dependencies
+if command -v xdotool &> /dev/null; then
+    ((CHECKS_PASSED++))
+fi
+if command -v scrot &> /dev/null; then
+    ((CHECKS_PASSED++))
+fi
+if command -v convert &> /dev/null; then
+    ((CHECKS_PASSED++))
+fi
+
+# Check build output
+if [ -f "dist/cli.js" ]; then
+    ((CHECKS_PASSED++))
+fi
+
+# Check .env
+if [ -f ".env" ]; then
+    ((CHECKS_PASSED++))
+fi
+
+if [ $CHECKS_PASSED -eq $CHECKS_TOTAL ]; then
+    print_success "All system checks passed ($CHECKS_PASSED/$CHECKS_TOTAL)"
+else
+    print_warning "System checks: $CHECKS_PASSED/$CHECKS_TOTAL passed"
 fi
 
 # Print success message
