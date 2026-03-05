@@ -422,7 +422,148 @@ const HTML = `
       min-height: 100vh;
       background: linear-gradient(165deg, #0c0c0f 0%, #13131a 35%, #0f0f14 100%);
       color: #e4e4e7;
+      padding: 0;
+      display: flex;
+    }
+    
+    /* CHAT HISTORY SIDEBAR */
+    .chat-sidebar {
+      width: 280px;
+      background: rgba(12,12,15,0.9);
+      border-right: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease;
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 100;
+    }
+    .chat-sidebar.hidden {
+      transform: translateX(-100%);
+    }
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sidebar-header h3 {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #f4f4f5;
+    }
+    .new-chat-btn {
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid rgba(167,139,250,0.3);
+      background: rgba(124,58,237,0.15);
+      color: #a78bfa;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .new-chat-btn:hover {
+      background: rgba(124,58,237,0.25);
+      border-color: rgba(167,139,250,0.5);
+    }
+    .session-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+    .session-group {
+      margin-bottom: 1rem;
+    }
+    .session-group-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #71717a;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+    .session-item {
+      padding: 0.65rem 0.75rem;
+      margin-bottom: 0.25rem;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+    .session-item:hover {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.08);
+    }
+    .session-item.active {
+      background: rgba(124,58,237,0.15);
+      border-color: rgba(167,139,250,0.3);
+    }
+    .session-title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #e4e4e7;
+      margin-bottom: 0.25rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .session-preview {
+      font-size: 0.75rem;
+      color: #71717a;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .session-time {
+      font-size: 0.7rem;
+      color: #52525b;
+      margin-top: 0.25rem;
+    }
+    .session-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .session-item:hover .session-actions {
+      opacity: 1;
+    }
+    .session-action-btn {
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.3);
+      color: #a1a1aa;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .session-action-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: #e4e4e7;
+    }
+    .session-action-btn.delete:hover {
+      background: rgba(239,68,68,0.2);
+      border-color: rgba(239,68,68,0.4);
+      color: #f87171;
+    }
+    
+    /* MAIN CONTENT */
+    .main-content {
+      flex: 1;
+      margin-left: 280px;
       padding: 0 1rem 2rem;
+      transition: margin-left 0.3s ease;
+    }
+    .main-content.sidebar-hidden {
+      margin-left: 0;
     }
     .wrap { max-width: 640px; margin: 0 auto; }
     .header {
@@ -573,22 +714,54 @@ const HTML = `
     .sessions-table th { color: #71717a; font-weight: 500; }
     body.theme-light .sessions-table th, body.theme-light .sessions-table td { border-bottom-color: rgba(0,0,0,0.06); }
     body.theme-light .sessions-table th { color: #52525b; }
-    .key-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.6rem; margin-top: 0.5rem; }
+    body.theme-light .key-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.6rem; margin-top: 0.5rem; }
     .key-settings-item { background: rgba(0,0,0,0.2); border-radius: 10px; padding: 0.6rem 0.85rem; font-size: 0.85rem; }
     .key-settings-item .k { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; }
     .key-settings-item .v { margin-top: 0.2rem; color: #e4e4e7; word-break: break-all; }
     body.theme-light .key-settings-item { background: rgba(0,0,0,0.06); }
     body.theme-light .key-settings-item .k { color: #52525b; }
     body.theme-light .key-settings-item .v { color: #18181b; }
+    
+    /* Sidebar toggle button */
+    .sidebar-toggle {
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.25);
+      color: #a78bfa;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+      margin-right: 1rem;
+    }
+    .sidebar-toggle:hover {
+      background: rgba(124,58,237,0.15);
+      border-color: rgba(167,139,250,0.3);
+    }
   </style>
 </head>
 <body id="bodyEl">
+  <!-- CHAT HISTORY SIDEBAR -->
+  <div class="chat-sidebar" id="chatSidebar">
+    <div class="sidebar-header">
+      <h3>💬 Chat History</h3>
+      <button class="new-chat-btn" id="newChatBtn">+ New</button>
+    </div>
+    <div class="session-list" id="sessionList">
+      <div style="text-align:center;padding:2rem;color:#71717a;font-size:0.85rem;">Loading sessions...</div>
+    </div>
+  </div>
+
+  <div class="main-content" id="mainContent">
   <div class="wrap">
     <header class="header">
       <div class="header-row">
-        <div>
-          <h1>OpenPaw</h1>
-          <p class="tagline">Your self-hosted AI assistant <span class="ver" id="appVersion"></span></p>
+        <div style="display:flex;align-items:center;">
+          <button class="sidebar-toggle" id="sidebarToggle" title="Toggle chat history">☰</button>
+          <div>
+            <h1>OpenPaw</h1>
+            <p class="tagline">Your self-hosted AI assistant <span class="ver" id="appVersion"></span></p>
+          </div>
         </div>
         <div class="header-controls">
           <span class="theme-btn" data-theme="dark" id="themeDark">Dark</span>
@@ -810,7 +983,271 @@ const HTML = `
     };
     send.onclick = doSend;
     input.onkeydown = (e) => { if (e.key === 'Enter') doSend(); };
+    
+    // =====================
+    // CHAT HISTORY MANAGER
+    // =====================
+    (function() {
+      const chatSidebar = document.getElementById('chatSidebar');
+      const mainContent = document.getElementById('mainContent');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const newChatBtn = document.getElementById('newChatBtn');
+      const sessionList = document.getElementById('sessionList');
+      
+      let allSessions = [];
+      let currentSessionKey = 'web:web-' + sessionId;
+      
+      // Toggle sidebar
+      sidebarToggle.onclick = function() {
+        const isHidden = chatSidebar.classList.toggle('hidden');
+        mainContent.classList.toggle('sidebar-hidden', isHidden);
+        localStorage.setItem('openpaw-sidebar-hidden', isHidden ? '1' : '0');
+      };
+      
+      // Restore sidebar state
+      if (localStorage.getItem('openpaw-sidebar-hidden') === '1') {
+        chatSidebar.classList.add('hidden');
+        mainContent.classList.add('sidebar-hidden');
+      }
+      
+      // New chat
+      newChatBtn.onclick = function() {
+        sessionId = crypto.randomUUID();
+        localStorage.setItem('openpaw-chat-session', sessionId);
+        currentSessionKey = 'web:web-' + sessionId;
+        log.innerHTML = '';
+        loadSessions();
+      };
+      
+      // Format time
+      function formatTime(ts) {
+        if (!ts) return '';
+        const date = new Date(ts);
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (minutes < 1) return 'Just now';
+        if (minutes < 60) return minutes + 'm ago';
+        if (hours < 24) return hours + 'h ago';
+        if (days < 7) return days + 'd ago';
+        return date.toLocaleDateString();
+      }
+      
+      // Get session title
+      function getSessionTitle(session) {
+        if (session.title) return session.title;
+        if (!session.history || !session.history.length) return 'New Chat';
+        const firstUser = session.history.find(m => m.role === 'user');
+        if (firstUser && firstUser.content) {
+          return firstUser.content.slice(0, 40) + (firstUser.content.length > 40 ? '...' : '');
+        }
+        return 'Chat ' + session.key.split('-').pop().slice(0, 6);
+      }
+      
+      // Get session preview
+      function getSessionPreview(session) {
+        if (!session.history || !session.history.length) return '';
+        const last = session.history[session.history.length - 1];
+        if (last && last.content) {
+          return last.content.slice(0, 60) + (last.content.length > 60 ? '...' : '');
+        }
+        return '';
+      }
+      
+      // Escape HTML
+      function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+      }
+      
+      // Group sessions by date
+      function groupSessions(sessions) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today - 86400000);
+        const weekAgo = new Date(today - 7 * 86400000);
+        
+        const groups = { today: [], yesterday: [], week: [], older: [] };
+        
+        sessions.forEach(s => {
+          const date = new Date(s.updatedAt || s.createdAt);
+          if (date >= today) groups.today.push(s);
+          else if (date >= yesterday) groups.yesterday.push(s);
+          else if (date >= weekAgo) groups.week.push(s);
+          else groups.older.push(s);
+        });
+        
+        return groups;
+      }
+      
+      // Render sessions
+      function renderSessions() {
+        if (!allSessions.length) {
+          sessionList.innerHTML = '<div style="text-align:center;padding:2rem;color:#71717a;font-size:0.85rem;">No conversations yet</div>';
+          return;
+        }
+        
+        const groups = groupSessions(allSessions);
+        let html = '';
+        
+        if (groups.today.length) {
+          html += '<div class="session-group"><div class="session-group-title">Today</div>';
+          html += groups.today.map(renderSessionItem).join('');
+          html += '</div>';
+        }
+        if (groups.yesterday.length) {
+          html += '<div class="session-group"><div class="session-group-title">Yesterday</div>';
+          html += groups.yesterday.map(renderSessionItem).join('');
+          html += '</div>';
+        }
+        if (groups.week.length) {
+          html += '<div class="session-group"><div class="session-group-title">Previous 7 Days</div>';
+          html += groups.week.map(renderSessionItem).join('');
+          html += '</div>';
+        }
+        if (groups.older.length) {
+          html += '<div class="session-group"><div class="session-group-title">Older</div>';
+          html += groups.older.map(renderSessionItem).join('');
+          html += '</div>';
+        }
+        
+        sessionList.innerHTML = html;
+        attachSessionListeners();
+      }
+      
+      // Render session item
+      function renderSessionItem(session) {
+        const isActive = session.key === currentSessionKey;
+        const title = getSessionTitle(session);
+        const preview = getSessionPreview(session);
+        const time = formatTime(session.updatedAt || session.createdAt);
+        
+        return '<div class="session-item' + (isActive ? ' active' : '') + '" data-key="' + esc(session.key) + '">' +
+          '<div class="session-title">' + esc(title) + '</div>' +
+          (preview ? '<div class="session-preview">' + esc(preview) + '</div>' : '') +
+          '<div class="session-time">' + time + '</div>' +
+          '<div class="session-actions">' +
+          '<button class="session-action-btn rename">Rename</button>' +
+          '<button class="session-action-btn delete">Delete</button>' +
+          '</div>' +
+          '</div>';
+      }
+      
+      // Attach session listeners
+      function attachSessionListeners() {
+        sessionList.querySelectorAll('.session-item').forEach(item => {
+          const key = item.getAttribute('data-key');
+          
+          item.onclick = function(e) {
+            if (e.target.classList.contains('session-action-btn')) return;
+            switchSession(key);
+          };
+          
+          const renameBtn = item.querySelector('.rename');
+          if (renameBtn) {
+            renameBtn.onclick = function(e) {
+              e.stopPropagation();
+              const session = allSessions.find(s => s.key === key);
+              const currentTitle = getSessionTitle(session);
+              const newTitle = prompt('Enter new title:', currentTitle);
+              if (newTitle && newTitle.trim() && newTitle !== currentTitle) {
+                renameSession(key, newTitle.trim());
+              }
+            };
+          }
+          
+          const deleteBtn = item.querySelector('.delete');
+          if (deleteBtn) {
+            deleteBtn.onclick = function(e) {
+              e.stopPropagation();
+              if (confirm('Delete this conversation?')) {
+                deleteSession(key);
+              }
+            };
+          }
+        });
+      }
+      
+      // Switch session
+      function switchSession(key) {
+        const id = key.replace('web:web-', '');
+        sessionId = id;
+        localStorage.setItem('openpaw-chat-session', id);
+        currentSessionKey = key;
+        
+        // Load session messages
+        fetch('/api/sessions/' + encodeURIComponent(key) + authQuery(), { headers: authHeaders() })
+          .then(r => r.json())
+          .then(d => {
+            log.innerHTML = '';
+            if (d.session && d.session.history) {
+              d.session.history.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = msg.role === 'user' ? 'you' : 'paw';
+                div.textContent = (msg.role === 'user' ? 'You: ' : 'Paw: ') + msg.content;
+                log.appendChild(div);
+              });
+              log.scrollTop = log.scrollHeight;
+            }
+            renderSessions();
+          })
+          .catch(() => {});
+      }
+      
+      // Delete session
+      function deleteSession(key) {
+        fetch('/api/sessions/' + encodeURIComponent(key) + authQuery(), {
+          method: 'DELETE',
+          headers: authHeaders()
+        })
+        .then(r => r.json())
+        .then(() => {
+          if (key === currentSessionKey) {
+            sessionId = crypto.randomUUID();
+            localStorage.setItem('openpaw-chat-session', sessionId);
+            currentSessionKey = 'web:web-' + sessionId;
+            log.innerHTML = '';
+          }
+          loadSessions();
+        })
+        .catch(() => {});
+      }
+      
+      // Rename session
+      function renameSession(key, title) {
+        fetch('/api/sessions/' + encodeURIComponent(key) + authQuery(), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ title })
+        })
+        .then(r => r.json())
+        .then(() => {
+          loadSessions();
+        })
+        .catch(() => {});
+      }
+      
+      // Load sessions
+      function loadSessions() {
+        fetch('/api/sessions' + authQuery(), { headers: authHeaders() })
+          .then(r => r.json())
+          .then(d => {
+            allSessions = d.sessions || [];
+            renderSessions();
+          })
+          .catch(() => {
+            sessionList.innerHTML = '<div style="text-align:center;padding:2rem;color:#f87171;font-size:0.85rem;">Failed to load</div>';
+          });
+      }
+      
+      // Initial load
+      loadSessions();
+    })();
   </script>
+  </div>
+  </div>
 </body>
 </html>
 `;
