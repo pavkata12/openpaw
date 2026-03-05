@@ -106,11 +106,40 @@ if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
                 # Check if imagemagick import is available
                 elif command -v convert &> /dev/null; then
                     print_success "imagemagick already installed (can use 'import' for screenshots)"
+                # Try installing from source if git and build tools available
+                elif command -v git &> /dev/null && command -v gcc &> /dev/null; then
+                    print_status "Attempting to compile scrot from source..."
+                    TMP_DIR=$(mktemp -d)
+                    cd "$TMP_DIR"
+                    if git clone https://github.com/resurrecting-open-source-projects/scrot.git 2>/dev/null && \
+                       cd scrot && \
+                       sudo apt install -y autoconf automake libx11-dev libxfixes-dev libimlib2-dev 2>/dev/null && \
+                       ./autogen.sh 2>/dev/null && \
+                       ./configure 2>/dev/null && \
+                       make 2>/dev/null && \
+                       sudo make install 2>/dev/null; then
+                        cd - > /dev/null
+                        rm -rf "$TMP_DIR"
+                        print_success "scrot compiled and installed from source"
+                    else
+                        cd - > /dev/null
+                        rm -rf "$TMP_DIR"
+                        print_warning "Failed to compile scrot from source"
+                        print_warning "⚠️  No screenshot tool available!"
+                        print_warning "    Computer screenshots will be limited."
+                        print_warning "    You can manually install later:"
+                        print_warning "    - Try: sudo apt update && sudo apt install scrot"
+                        print_warning "    - Or visit: https://github.com/resurrecting-open-source-projects/scrot"
+                        print_warning "    Continuing installation..."
+                    fi
                 else
                     print_warning "⚠️  Could not install screenshot tool automatically."
                     print_warning "    Computer screenshots may not work."
-                    print_warning "    Try manually: sudo apt install scrot"
-                    print_warning "    Or: sudo apt install gnome-screenshot"
+                    print_warning "    Manual installation options:"
+                    print_warning "    1. Update repositories: sudo apt update"
+                    print_warning "    2. Try: sudo apt install scrot"
+                    print_warning "    3. Or: sudo apt install gnome-screenshot"
+                    print_warning "    4. Or compile from source: https://github.com/resurrecting-open-source-projects/scrot"
                     print_warning "    Continuing installation..."
                 fi
             elif [ "${dep}" = "imagemagick" ]; then
