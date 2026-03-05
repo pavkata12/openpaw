@@ -787,6 +787,7 @@ const HTML = `
         <a href="/tasks">Scheduled tasks</a>
         <a href="/audit">Audit log</a>
         <a href="/history">History</a>
+        <a href="/settings">⚙️ Settings</a>
       </div>
       <p class="hint" style="margin-top:0.75rem;margin-bottom:0;">CLI: <code style="font-size:0.8rem;padding:0.2rem 0.4rem;background:rgba(0,0,0,0.25);border-radius:6px;">npm run start:cli</code> · <code style="font-size:0.8rem;padding:0.2rem 0.4rem;background:rgba(0,0,0,0.25);border-radius:6px;">openpaw doctor</code></p>
     </div>
