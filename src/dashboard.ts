@@ -2069,12 +2069,18 @@ export async function startDashboard(deps?: DashboardDeps) {
         session.history.push({ role: "user", content: text });
         session.updatedAt = Date.now();
 
+        // Convert history to agent format (exclude the current user message since it will be passed separately)
+        const conversationHistory = session.history.slice(0, -1).map(msg => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content
+        }));
+
         let reply: string;
         if (webChannel && "sendMessage" in webChannel) {
           const send = webChannel as { sendMessage(userId: string, text: string, metadata?: Record<string, unknown>): Promise<string> };
           reply = await send.sendMessage(userId, text, voice ? { voice: true } : undefined);
         } else {
-          reply = await runAgent(llm, registry, text, [], {
+          reply = await runAgent(llm, registry, text, conversationHistory, {
             ...(voice ? { voice: true } : {}),
             ...(config.OPENPAW_ACCESSIBILITY_MODE ? { systemPromptSuffix: ACCESSIBILITY_PROMPT_SUFFIX } : {}),
             maxTurns: config.OPENPAW_AGENT_MAX_TURNS,
