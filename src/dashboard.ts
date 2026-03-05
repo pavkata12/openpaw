@@ -1279,6 +1279,22 @@ export async function startDashboard(deps?: DashboardDeps) {
       res.end(`# OpenPaw metrics\nopenpaw_uptime_seconds ${uptime}\n`);
       return;
     }
+    
+    // SETTINGS PAGE
+    if (url === "/settings" && req.method === "GET") {
+      try {
+        const __dirname = dirname(fileURLToPath(import.meta.url));
+        const filePath = join(__dirname, "views", "settings.html");
+        const content = readFileSync(filePath, "utf-8");
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(content);
+      } catch (err) {
+        res.writeHead(404);
+        res.end("Settings page not found");
+      }
+      return;
+    }
+    
     if (url === "/api/tasks" && req.method === "GET") {
       try {
         const tasks = await loadTasks(dataDir);
