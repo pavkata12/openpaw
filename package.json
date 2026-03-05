@@ -8,7 +8,8 @@
     "openpaw": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-views",
+    "copy-views": "node -e \"require('fs').cpSync('src/views', 'dist/views', {recursive: true})\"",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "start:cli": "node dist/cli.js chat",
