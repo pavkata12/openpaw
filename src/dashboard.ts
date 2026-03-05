@@ -2044,7 +2044,30 @@ export async function startDashboard(deps?: DashboardDeps) {
         }
         const sessionId = String(body.sessionId ?? "").trim() || `anon-${Date.now()}`;
         const userId = `web-${sessionId}`; // router session key for conversation memory
+        const sessionKey = `web:${userId}`; // Full session key for storage
         const voice = body.voice === true;
+
+        // Load existing session
+        const sessionPath = join(dataDir, "sessions.json");
+        const ttlHours = config.OPENPAW_SESSION_TTL_HOURS ?? 24;
+        const ttlMs = ttlHours * 60 * 60 * 1000;
+        const sessionsMap = await loadSessions(sessionPath, ttlMs);
+        
+        let session = sessionsMap.get(sessionKey);
+        if (!session) {
+          session = {
+            key: sessionKey,
+            history: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          sessionsMap.set(sessionKey, session);
+        }
+        
+        // Add user message to history
+        session.history = session.history || [];
+        session.history.push({ role: "user", content: text });
+        session.updatedAt = Date.now();
 
         let reply: string;
         if (webChannel && "sendMessage" in webChannel) {
@@ -2060,6 +2083,14 @@ export async function startDashboard(deps?: DashboardDeps) {
             ...(delegateHistoryRef != null ? { delegateHistoryRef } : {}),
           });
         }
+        
+        // Add assistant reply to history
+        session.history.push({ role: "assistant", content: reply });
+        session.updatedAt = Date.now();
+        
+        // Save session
+        const { saveSessions } = await import("./session-store.js");
+        await saveSessions(sessionPath, sessionsMap, ttlMs);
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ reply }));
