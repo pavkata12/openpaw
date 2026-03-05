@@ -1,6 +1,9 @@
 import type { LLMAdapter, Message, ToolSpec } from "./llm.js";
 import type { ToolRegistry } from "./tools/types.js";
 import { logToolCall } from "./audit.js";
+import { analyzeError, clearRetryHistory } from "./error-recovery.js";
+import { autoCheckpoint, createCheckpointId, initCheckpointManager } from "./checkpoint.js";
+import { emitToolCallStart, emitToolCallComplete, emitAssistantMessage, emitComplete } from "./streaming.js";
 
 const MAX_TURNS_DEFAULT = 20;
 const SESSION_SUMMARY_THRESHOLD = 8;
@@ -123,8 +126,21 @@ export async function runAgent(
 
   const maxTurns = options?.maxTurns ?? MAX_TURNS_DEFAULT;
   const useCompletionReminder = options?.completionReminder !== false;
+  
+  // Create checkpoint ID for this task
+  const checkpointId = createCheckpointId(userMessage);
+  const checkpointEveryN = 5;  // Checkpoint every 5 turns
 
   for (let turn = 0; turn < maxTurns; turn++) {
+    // Auto-checkpoint progress every N turns
+    if (turn > 0 && turn % checkpointEveryN === 0) {
+      autoCheckpoint(checkpointId, userMessage, turn, messages, {
+        currentStep: `Turn ${turn}/${maxTurns}`,
+        completedSteps: [`Completed ${turn} turns`],
+        remainingSteps: [`${maxTurns - turn} turns remaining`]
+      });
+    }
+    
     const response = await llm.chat(messages, toolSpecs.length ? toolSpecs : undefined, Object.keys(chatOptions).length ? chatOptions : undefined);
 
     if (response.finishReason === "stop") {
@@ -148,54 +164,113 @@ export async function runAgent(
           /* on verify error, accept the reply and return */
         }
       }
+      
+      // Emit completion event
+      emitComplete(finalText);
       return finalText;
     }
 
     if (response.finishReason !== "tool_calls" || !response.toolCalls?.length) {
-      return response.content.trim() || "Done.";
+      const finalMsg = response.content.trim() || "Done.";
+      emitComplete(finalMsg);
+      return finalMsg;
     }
 
     messages.push({
       role: "assistant",
       content: response.content || "",
     });
+    
+    // Emit assistant message event
+    if (response.content) {
+      emitAssistantMessage(response.content);
+    }
 
-    for (const tc of response.toolCalls) {
-      let result: string;
-      const toolArgs = JSON.parse(tc.arguments || "{}") as Record<string, unknown>;
-      if (options?.onBeforeToolCall) {
-        const override = await options.onBeforeToolCall(tc.name, toolArgs);
-        if (override != null) {
-          result = override;
+    // PARALLEL TOOL EXECUTION: Run all tool calls simultaneously for speed
+    const toolResults = await Promise.allSettled(
+      response.toolCalls.map(async (tc) => {
+        // Emit stream event: tool call started
+        emitToolCallStart(tc.name, JSON.parse(tc.arguments || "{}"));
+        
+        let result: string;
+        const toolArgs = JSON.parse(tc.arguments || "{}") as Record<string, unknown>;
+        
+        if (options?.onBeforeToolCall) {
+          const override = await options.onBeforeToolCall(tc.name, toolArgs);
+          if (override != null) {
+            result = override;
+          } else {
+            const tool = tools.get(tc.name);
+            try {
+              result = tool ? await tool.execute(toolArgs) : `Unknown tool: ${tc.name}`;
+              clearRetryHistory(tc.name, toolArgs);
+            } catch (e) {
+              const errorMsg = e instanceof Error ? e.message : String(e);
+              const recovery = analyzeError(tc.name, toolArgs, errorMsg);
+              
+              result = `Tool error: ${errorMsg}`;
+              if (recovery.strategy) {
+                result += `\n\n[Recovery suggestion]: ${recovery.strategy}`;
+              }
+              if (recovery.waitMs) {
+                result += `\n[Suggestion]: Wait ${recovery.waitMs / 1000}s before retrying.`;
+              }
+            }
+          }
         } else {
           const tool = tools.get(tc.name);
           try {
             result = tool ? await tool.execute(toolArgs) : `Unknown tool: ${tc.name}`;
+            // Clear retry history on success
+            clearRetryHistory(tc.name, toolArgs);
           } catch (e) {
-            result = `Tool error: ${e instanceof Error ? e.message : String(e)}`;
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            const recovery = analyzeError(tc.name, toolArgs, errorMsg);
+            
+            // Add recovery suggestion to error message
+            result = `Tool error: ${errorMsg}`;
+            if (recovery.strategy) {
+              result += `\n\n[Recovery suggestion]: ${recovery.strategy}`;
+            }
+            if (recovery.waitMs) {
+              result += `\n[Suggestion]: Wait ${recovery.waitMs / 1000}s before retrying.`;
+            }
           }
         }
-      } else {
-        const tool = tools.get(tc.name);
-        try {
-          result = tool ? await tool.execute(toolArgs) : `Unknown tool: ${tc.name}`;
-        } catch (e) {
-          result = `Tool error: ${e instanceof Error ? e.message : String(e)}`;
+        
+        // Audit logging
+        if (options?.audit?.enabled && options.audit.path) {
+          await logToolCall(
+            { enabled: true, path: options.audit.path },
+            { toolName: tc.name, args: toolArgs, resultSummary: result, channel: options.channel }
+          );
         }
+        
+        // Emit stream event: tool call completed
+        emitToolCallComplete(tc.name, result);
+        
+        return { toolCall: tc, result };
+      })
+    );
+
+    // Add all tool results to messages
+    for (const promiseResult of toolResults) {
+      if (promiseResult.status === "fulfilled") {
+        const { toolCall, result } = promiseResult.value;
+        const toolResultContent =
+          `[Tool result for ${toolCall.name}]: ${result}` +
+          (useCompletionReminder ? COMPLETION_REMINDER : "");
+        messages.push({
+          role: "user",
+          content: toolResultContent,
+        });
+      } else {
+        // Tool execution failed at promise level
+        messages.push({
+          role: "user",
+          content: `[Tool execution failed]: ${promiseResult.reason}`,
+        });
       }
-      if (options?.audit?.enabled && options.audit.path) {
-        await logToolCall(
-          { enabled: true, path: options.audit.path },
-          { toolName: tc.name, args: toolArgs, resultSummary: result, channel: options.channel }
-        );
-      }
-      const toolResultContent =
-        `[Tool result for ${tc.name}]: ${result}` +
-        (useCompletionReminder ? COMPLETION_REMINDER : "");
-      messages.push({
-        role: "user",
-        content: toolResultContent,
-      });
     }
   }
 

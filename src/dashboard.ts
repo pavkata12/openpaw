@@ -27,10 +27,24 @@ import { createFetchPageTool } from "./tools/fetch-page.js";
 import { createOpenUrlTool } from "./tools/open-url.js";
 import { createPlayMediaTool } from "./tools/play-media.js";
 import { createTranscribeVideoTool } from "./tools/transcribe-video.js";
+import { createBrowserAutomateTool, createBrowserOpenAndReadTool } from "./tools/browser.js";
+import { createBrowserSessionTool } from "./tools/browser-enhanced.js";
+import { createScreenshotTool, createVisionClickTool } from "./tools/screenshot.js";
+import { createYtDlpTool, createYtDlpDownloadTool } from "./tools/ytdlp.js";
+import { createRecordWorkflowTool, createFindWorkflowTool, createListWorkflowsTool } from "./tools/workflow-memory.js";
+import * as PentestTools from "./tools/pentest/index.js";
+import { createExploitSuggestionTool } from "./exploit-suggestion.js";
+import { createNewReportTool, createAddFindingTool, createExportReportTool } from "./tools/reporting.js";
+import { createCVELookupTool, createExploitDBSearchTool, createCVSSCalculatorTool } from "./tools/vuln-database.js";
+import { createWordlistGeneratorTool, createPasswordMutatorTool } from "./tools/wordlist-generator.js";
+import { createToolCheckTool, createSystemReadyTool } from "./tools/system-check.js";
+import { createWhoisTool, createDNSEnumTool, createSubdomainFinderTool, createEmailHarvesterTool, createTechDetectionTool } from "./tools/osint.js";
+import { createScreenshotComputerTool, createMouseClickTool, createMouseMoveTool, createKeyboardTypeTool, createKeyboardPressTool, createComputerUseTool } from "./tools/computer-use.js";
 import { createLocalWhisperSTT, createElevenLabsSTT } from "./voice/stt.js";
 import type { ChannelAdapter } from "./channels/types.js";
 import { loadTasks, saveTasks } from "./scheduler/task-store.js";
 import { loadSessions } from "./session-store.js";
+import { getConfigManager } from "./config-manager.js";
 
 const PORT = 3780;
 
@@ -1049,7 +1063,7 @@ export interface DashboardDeps {
   delegateHistoryRef?: DelegateHistoryRef;
 }
 
-export function startDashboard(deps?: DashboardDeps) {
+export async function startDashboard(deps?: DashboardDeps) {
   const config = deps?.config ?? loadConfig();
   const dataDir = config.OPENPAW_DATA_DIR;
   const registry = deps?.registry ?? createToolRegistry();
@@ -1073,11 +1087,78 @@ export function startDashboard(deps?: DashboardDeps) {
     registry.register(createWirelessScanTool());
     registry.register(createWirelessAttackTool());
     registry.register(createNiktoScanTool());
+    
+    // PENTESTING TOOLS SUITE
+    registry.register(PentestTools.createNucleiScanTool());
+    registry.register(PentestTools.createGobusterTool());
+    registry.register(PentestTools.createFfufTool());
+    registry.register(PentestTools.createSQLMapTool());
+    registry.register(PentestTools.createWPScanTool());
+    registry.register(PentestTools.createLinPEASTool());
+    registry.register(PentestTools.createWinPEASTool());
+    registry.register(PentestTools.createEnum4LinuxTool());
+    registry.register(PentestTools.createHashcatTool());
+    registry.register(PentestTools.createHydraTool());
+    registry.register(PentestTools.createMetasploitSearchTool());
+    registry.register(PentestTools.createMetasploitInfoTool());
+    
+    // AI INTELLIGENCE & ADVANCED FEATURES
+    registry.register(createExploitSuggestionTool());
+    registry.register(createNewReportTool());
+    registry.register(createAddFindingTool());
+    registry.register(createExportReportTool());
+    registry.register(createCVELookupTool());
+    registry.register(createExploitDBSearchTool());
+    registry.register(createCVSSCalculatorTool());
+    registry.register(createWordlistGeneratorTool());
+    registry.register(createPasswordMutatorTool());
+    registry.register(createToolCheckTool());
+    registry.register(createSystemReadyTool());
+    registry.register(createWhoisTool());
+    registry.register(createDNSEnumTool());
+    registry.register(createSubdomainFinderTool());
+    registry.register(createEmailHarvesterTool());
+    registry.register(createTechDetectionTool());
+    
+    // COMPUTER USE API
+    registry.register(createScreenshotComputerTool());
+    registry.register(createMouseClickTool());
+    registry.register(createMouseMoveTool());
+    registry.register(createKeyboardTypeTool());
+    registry.register(createKeyboardPressTool());
+    registry.register(createComputerUseTool());
+    
     registry.register(createDuckDuckGoSearchTool());
     registry.register(createFetchPageTool());
     registry.register(createOpenUrlTool());
     registry.register(createPlayMediaTool(config.OPENPAW_WORKSPACE));
     registry.register(createTranscribeVideoTool(config));
+    
+    // Enhanced browser session (persistent)
+    const browserSessionTool = await createBrowserSessionTool();
+    if (browserSessionTool) registry.register(browserSessionTool);
+    
+    // Screenshot tool for vision-based navigation
+    const screenshotTool = await createScreenshotTool();
+    if (screenshotTool) registry.register(screenshotTool);
+    
+    // Vision-based click (requires vision model)
+    registry.register(createVisionClickTool());
+    
+    // yt-dlp integration for video extraction
+    registry.register(createYtDlpTool());
+    registry.register(createYtDlpDownloadTool());
+    
+    // Workflow learning and memory
+    registry.register(createRecordWorkflowTool(config.OPENPAW_DATA_DIR));
+    registry.register(createFindWorkflowTool(config.OPENPAW_DATA_DIR));
+    registry.register(createListWorkflowsTool(config.OPENPAW_DATA_DIR));
+
+    // Original browser tools
+    const browserAutomateOriginal = await createBrowserAutomateTool();
+    if (browserAutomateOriginal) registry.register(browserAutomateOriginal);
+    const browserReadOriginal = await createBrowserOpenAndReadTool();
+    if (browserReadOriginal) registry.register(browserReadOriginal);
     const llm2 = createSecondLLM(config);
     if (llm2) {
       delegateHistoryRef = { history: [] };
@@ -1450,6 +1531,80 @@ export function startDashboard(deps?: DashboardDeps) {
       }
       return;
     }
+    
+    // CONFIG API - Get current configuration
+    if (url === "/api/config" && req.method === "GET") {
+      try {
+        const configManager = getConfigManager();
+        const currentConfig = configManager.get();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(currentConfig));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    
+    // CONFIG API - Save configuration
+    if (url === "/api/config" && req.method === "POST") {
+      try {
+        const body = await parseBody(req);
+        const configManager = getConfigManager();
+        configManager.update(body);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true, message: "Configuration saved. Restart OpenPaw for changes to take effect." }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    
+    // CONFIG API - Import from .env
+    if (url === "/api/config/import-env" && req.method === "POST") {
+      try {
+        const configManager = getConfigManager();
+        const envPath = join(process.cwd(), ".env");
+        configManager.importFromEnv(envPath);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true, message: "Settings imported from .env" }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    
+    // CONFIG API - Reset to defaults
+    if (url === "/api/config/reset" && req.method === "POST") {
+      try {
+        const configManager = getConfigManager();
+        configManager.reset();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true, message: "Settings reset to defaults" }));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }));
+      }
+      return;
+    }
+    
+    // STATIC FILE - settings.js
+    if (url === "/static/settings.js" && req.method === "GET") {
+      try {
+        const __dirname = dirname(fileURLToPath(import.meta.url));
+        const filePath = join(__dirname, "views", "settings.js");
+        const content = readFileSync(filePath, "utf-8");
+        res.writeHead(200, { "Content-Type": "application/javascript" });
+        res.end(content);
+      } catch {
+        res.writeHead(404);
+        res.end("Not found");
+      }
+      return;
+    }
+    
     res.writeHead(404);
     res.end("Not found");
   });

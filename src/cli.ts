@@ -31,6 +31,19 @@ import { createOpenUrlTool } from "./tools/open-url.js";
 import { createPlayMediaTool } from "./tools/play-media.js";
 import { createTranscribeVideoTool } from "./tools/transcribe-video.js";
 import { createBrowserAutomateTool, createBrowserOpenAndReadTool } from "./tools/browser.js";
+import { createBrowserSessionTool } from "./tools/browser-enhanced.js";
+import { createScreenshotTool, createVisionClickTool } from "./tools/screenshot.js";
+import { createYtDlpTool, createYtDlpDownloadTool } from "./tools/ytdlp.js";
+import { createRecordWorkflowTool, createFindWorkflowTool, createListWorkflowsTool } from "./tools/workflow-memory.js";
+import { initCheckpointManager } from "./checkpoint.js";
+import * as PentestTools from "./tools/pentest/index.js";
+import { createExploitSuggestionTool } from "./exploit-suggestion.js";
+import { createNewReportTool, createAddFindingTool, createExportReportTool } from "./tools/reporting.js";
+import { createCVELookupTool, createExploitDBSearchTool, createCVSSCalculatorTool } from "./tools/vuln-database.js";
+import { createWordlistGeneratorTool, createPasswordMutatorTool } from "./tools/wordlist-generator.js";
+import { createToolCheckTool, createSystemReadyTool } from "./tools/system-check.js";
+import { createWhoisTool, createDNSEnumTool, createSubdomainFinderTool, createEmailHarvesterTool, createTechDetectionTool } from "./tools/osint.js";
+import { createScreenshotComputerTool, createMouseClickTool, createMouseMoveTool, createKeyboardTypeTool, createKeyboardPressTool, createComputerUseTool } from "./tools/computer-use.js";
 import {
   createReadFileTool,
   createWriteFileTool,
@@ -50,6 +63,10 @@ async function bootstrap() {
   const config = loadConfig();
   initLogger(config);
   const dataDir = config.OPENPAW_DATA_DIR;
+  
+  // Initialize checkpoint manager
+  initCheckpointManager(dataDir);
+  
   // Accessibility mode: blind user says what they want, agent does it — need all tools (browser, play_media, email, etc.).
   const useAllToolsForAccessibility = config.OPENPAW_ACCESSIBILITY_MODE;
   const pack = !useAllToolsForAccessibility && config.OPENPAW_PACK ? await getPack(config.OPENPAW_PACK, dataDir) : null;
@@ -91,6 +108,68 @@ async function bootstrap() {
   if (shouldRegister("wireless_scan")) registry.register(createWirelessScanTool());
   if (shouldRegister("wireless_attack")) registry.register(createWirelessAttackTool());
   if (shouldRegister("nikto_scan")) registry.register(createNiktoScanTool());
+  
+  // PENTESTING TOOLS SUITE (Kali Linux focused)
+  // Vulnerability Scanning
+  if (shouldRegister("nuclei_scan")) registry.register(PentestTools.createNucleiScanTool());
+  
+  // Web Fuzzing & Enumeration
+  if (shouldRegister("gobuster")) registry.register(PentestTools.createGobusterTool());
+  if (shouldRegister("ffuf")) registry.register(PentestTools.createFfufTool());
+  
+  // Web Exploitation
+  if (shouldRegister("sqlmap")) registry.register(PentestTools.createSQLMapTool());
+  if (shouldRegister("wpscan")) registry.register(PentestTools.createWPScanTool());
+  
+  // Privilege Escalation
+  if (shouldRegister("linpeas")) registry.register(PentestTools.createLinPEASTool());
+  if (shouldRegister("winpeas")) registry.register(PentestTools.createWinPEASTool());
+  if (shouldRegister("enum4linux")) registry.register(PentestTools.createEnum4LinuxTool());
+  
+  // Password Attacks
+  if (shouldRegister("hashcat")) registry.register(PentestTools.createHashcatTool());
+  if (shouldRegister("hydra")) registry.register(PentestTools.createHydraTool());
+  
+  // Exploitation Framework
+  if (shouldRegister("metasploit_search")) registry.register(PentestTools.createMetasploitSearchTool());
+  if (shouldRegister("metasploit_info")) registry.register(PentestTools.createMetasploitInfoTool());
+  
+  // AI INTELLIGENCE & ADVANCED FEATURES
+  // Exploit suggestion engine
+  if (shouldRegister("suggest_exploit")) registry.register(createExploitSuggestionTool());
+  
+  // Professional reporting
+  if (shouldRegister("create_report")) registry.register(createNewReportTool());
+  if (shouldRegister("add_finding")) registry.register(createAddFindingTool());
+  if (shouldRegister("export_report")) registry.register(createExportReportTool());
+  
+  // Vulnerability databases
+  if (shouldRegister("cve_lookup")) registry.register(createCVELookupTool());
+  if (shouldRegister("exploitdb_search")) registry.register(createExploitDBSearchTool());
+  if (shouldRegister("calculate_cvss")) registry.register(createCVSSCalculatorTool());
+  
+  // Custom wordlist generation
+  if (shouldRegister("generate_wordlist")) registry.register(createWordlistGeneratorTool());
+  if (shouldRegister("mutate_passwords")) registry.register(createPasswordMutatorTool());
+  
+  // System tools
+  if (shouldRegister("check_tools")) registry.register(createToolCheckTool());
+  if (shouldRegister("system_ready")) registry.register(createSystemReadyTool());
+  
+  // OSINT reconnaissance
+  if (shouldRegister("whois_lookup")) registry.register(createWhoisTool());
+  if (shouldRegister("dns_enum")) registry.register(createDNSEnumTool());
+  if (shouldRegister("find_subdomains")) registry.register(createSubdomainFinderTool());
+  if (shouldRegister("harvest_emails")) registry.register(createEmailHarvesterTool());
+  if (shouldRegister("detect_tech")) registry.register(createTechDetectionTool());
+  
+  // COMPUTER USE API (Anthropic Claude-style)
+  if (shouldRegister("computer_screenshot")) registry.register(createScreenshotComputerTool());
+  if (shouldRegister("mouse_click")) registry.register(createMouseClickTool());
+  if (shouldRegister("mouse_move")) registry.register(createMouseMoveTool());
+  if (shouldRegister("keyboard_type")) registry.register(createKeyboardTypeTool());
+  if (shouldRegister("keyboard_press")) registry.register(createKeyboardPressTool());
+  if (shouldRegister("computer_use")) registry.register(createComputerUseTool());
 
   const mcp = await loadMCPTools(config.OPENPAW_DATA_DIR).catch(() => ({ tools: [], close: async () => {} }));
   for (const t of mcp.tools) {
@@ -116,11 +195,35 @@ async function bootstrap() {
   if (shouldRegister("open_url")) registry.register(createOpenUrlTool());
   if (shouldRegister("play_media")) registry.register(createPlayMediaTool(config.OPENPAW_WORKSPACE));
   if (shouldRegister("transcribe_video")) registry.register(createTranscribeVideoTool(config));
+  
+  // Enhanced browser session tool (persistent, smart element finding, fullscreen)
+  const browserSessionTool = await createBrowserSessionTool();
+  if (browserSessionTool && shouldRegister(browserSessionTool.name)) registry.register(browserSessionTool);
+  
+  // Screenshot tool for vision-based navigation
+  const screenshotTool = await createScreenshotTool();
+  if (screenshotTool && shouldRegister(screenshotTool.name)) registry.register(screenshotTool);
+  
+  // Vision-based click (requires vision model)
+  const visionClickTool = createVisionClickTool();
+  if (shouldRegister(visionClickTool.name)) registry.register(visionClickTool);
+  
+  // yt-dlp integration for video extraction
+  if (shouldRegister("extract_video_url")) registry.register(createYtDlpTool());
+  if (shouldRegister("download_video")) registry.register(createYtDlpDownloadTool());
+  
+  // Workflow learning and memory
+  if (shouldRegister("record_workflow")) registry.register(createRecordWorkflowTool(dataDir));
+  if (shouldRegister("find_workflow")) registry.register(createFindWorkflowTool(dataDir));
+  if (shouldRegister("list_workflows")) registry.register(createListWorkflowsTool(dataDir));
+
+  // Original browser tools (still useful for one-off tasks)
   const browserTool = await createBrowserAutomateTool();
   if (browserTool && shouldRegister(browserTool.name)) registry.register(browserTool);
   const browserReadTool = await createBrowserOpenAndReadTool();
   if (browserReadTool && shouldRegister(browserReadTool.name)) registry.register(browserReadTool);
-  if (shouldRegister("browser_automate") && !browserTool) {
+  
+  if (shouldRegister("browser_automate") && !browserTool && !browserSessionTool) {
     logger.warn("Browser tools not loaded (Playwright missing?). For interactive sites, episode lists, and video players run: npm install playwright && npx playwright install chromium");
   }
 

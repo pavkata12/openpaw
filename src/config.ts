@@ -2,6 +2,7 @@ import { z } from "zod";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getConfigManager, type OpenPawConfig } from "./config-manager.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Project root: folder above dist/ when running compiled code. */
@@ -118,34 +119,62 @@ function resolveDataDir(raw: string): string {
   return resolved;
 }
 
+/**
+ * Load configuration from config.json (preferred) or fallback to .env
+ */
 export function loadConfig(): Config {
-  const configPath = process.env.OPENPAW_CONFIG;
-  const configDir = configPath ? dirname(resolve(process.cwd(), configPath)) : process.cwd();
-  const candidates = [
-    resolve(projectRoot, ".env"),
-    resolve(configDir, ".env"),
-    resolve(process.cwd(), ".env"),
-    resolve(process.cwd(), "..", ".env"),
-  ];
-  const toLoad = candidates.find((p) => existsSync(p));
-  if (toLoad) process.env.OPENPAW_LOADED_ENV_PATH = toLoad;
-  if (!toLoad) {
-    const tried = candidates.join(", ");
-    console.error(
-      "[OpenPaw] No .env file found. Tried: " + tried + "\n  Copy .env.example to .env and configure: cp .env.example .env"
-    );
-  } else if (toLoad !== candidates[0]) {
-    console.warn("[OpenPaw] Loaded .env from: " + toLoad);
-  }
-  if (toLoad) {
-    const raw = readFileSync(toLoad, "utf-8");
-    const parsed: Record<string, string> = {};
-    for (const line of raw.split(/\r?\n/)) {
-      const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-      if (m) parsed[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
+  const configJsonPath = join(process.cwd(), ".openpaw", "config.json");
+  
+  // Try to load from config.json first
+  if (existsSync(configJsonPath)) {
+    try {
+      console.log("[OpenPaw] Loading configuration from config.json...");
+      const configManager = getConfigManager();
+      const jsonConfig = configManager.get();
+      
+      // Convert JSON config to env vars for backward compatibility
+      const envVars = configManager.toEnvVars();
+      Object.assign(process.env, envVars);
+      
+      console.log("[OpenPaw] Configuration loaded from config.json");
+    } catch (e) {
+      console.error("[OpenPaw] Failed to load config.json:", e);
+      console.warn("[OpenPaw] Falling back to .env file...");
     }
-    Object.assign(process.env, parsed);
   }
+  
+  // Fallback to .env file if config.json doesn't exist or failed to load
+  if (!existsSync(configJsonPath) || !process.env.OPENPAW_LLM_BASE_URL) {
+    const configPath = process.env.OPENPAW_CONFIG;
+    const configDir = configPath ? dirname(resolve(process.cwd(), configPath)) : process.cwd();
+    const candidates = [
+      resolve(projectRoot, ".env"),
+      resolve(configDir, ".env"),
+      resolve(process.cwd(), ".env"),
+      resolve(process.cwd(), "..", ".env"),
+    ];
+    const toLoad = candidates.find((p) => existsSync(p));
+    if (toLoad) process.env.OPENPAW_LOADED_ENV_PATH = toLoad;
+    if (!toLoad) {
+      const tried = candidates.join(", ");
+      console.error(
+        "[OpenPaw] No configuration found. Tried config.json and .env files: " + tried + "\n  Run OpenPaw dashboard to configure: npm run dashboard"
+      );
+    } else if (toLoad !== candidates[0]) {
+      console.warn("[OpenPaw] Loaded .env from: " + toLoad);
+      console.log("[OpenPaw] 💡 Tip: Use 'npm run dashboard' to configure via web UI and migrate to config.json");
+    }
+    if (toLoad) {
+      const raw = readFileSync(toLoad, "utf-8");
+      const parsed: Record<string, string> = {};
+      for (const line of raw.split(/\r?\n/)) {
+        const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+        if (m) parsed[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
+      }
+      Object.assign(process.env, parsed);
+    }
+  }
+  
   const parsed = EnvSchema.parse(process.env);
   const dataDir = resolveDataDir(parsed.OPENPAW_DATA_DIR);
   const engagementsDir = join(dataDir, "engagements");

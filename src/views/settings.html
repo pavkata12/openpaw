@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenPaw Settings</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(165deg, #0c0c0f 0%, #13131a 35%, #0f0f14 100%);
+      color: #e4e4e7;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    
+    .header {
+      padding: 1.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header h1 { font-size: 1.5rem; font-weight: 700; }
+    .header a { color: #a78bfa; text-decoration: none; font-size: 0.9rem; }
+    
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 2px solid rgba(255,255,255,0.06);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    .tab {
+      padding: 0.75rem 1.25rem;
+      background: none;
+      border: none;
+      color: #a1a1aa;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab:hover { color: #c4b5fd; }
+    .tab.active { color: #a78bfa; border-bottom-color: #a78bfa; }
+    
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.3s; }
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .section {
+      background: rgba(24,24,27,0.6);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .section h3 { font-size: 1.1rem; margin-bottom: 1rem; color: #f4f4f5; }
+    .section-description { color: #71717a; font-size: 0.85rem; margin-bottom: 1.25rem; }
+    
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #a1a1aa;
+      margin-bottom: 0.5rem;
+    }
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group input[type="password"],
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.65rem 1rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      color: #e4e4e7;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: rgba(167,139,250,0.4);
+      box-shadow: 0 0 0 3px rgba(167,139,250,0.1);
+    }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .form-group small { display: block; color: #71717a; font-size: 0.75rem; margin-top: 0.35rem; }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #a78bfa;
+    }
+    .checkbox-group label { margin: 0; font-size: 0.9rem; }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(145deg, #7c3aed 0%, #6d28d9 100%);
+      color: #fff;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(124,58,237,0.4); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: #a1a1aa;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); color: #e4e4e7; }
+    
+    .alert {
+      padding: 1rem 1.25rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+    .alert-success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+    .alert-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+    .alert-info { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; }
+    
+    #statusMessage { display: none; }
+    #statusMessage.show { display: block; animation: slideIn 0.3s; }
+    
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>⚙️ Settings</h1>
+      <a href="/" id="backLink">← Back to Dashboard</a>
+    </header>
+    
+    <div id="statusMessage"></div>
+    
+    <div class="tabs">
+      <button class="tab active" data-tab="llm">LLM</button>
+      <button class="tab" data-tab="agent">Agent</button>
+      <button class="tab" data-tab="workspace">Workspace</button>
+      <button class="tab" data-tab="shell">Shell</button>
+      <button class="tab" data-tab="channels">Channels</button>
+      <button class="tab" data-tab="voice">Voice</button>
+      <button class="tab" data-tab="integrations">Integrations</button>
+      <button class="tab" data-tab="session">Session</button>
+      <button class="tab" data-tab="audit">Audit & Security</button>
+      <button class="tab" data-tab="advanced">Advanced</button>
+    </div>
+    
+    <form id="settingsForm">
+      <!-- LLM Tab -->
+      <div class="tab-content active" data-tab="llm">
+        <div class="section">
+          <h3>Primary LLM</h3>
+          <p class="section-description">Configure your main language model. Supports OpenAI, Ollama, OpenRouter, or any OpenAI-compatible API.</p>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Base URL</label>
+              <input type="text" name="llm.baseUrl" placeholder="http://localhost:11434/v1">
+              <small>API endpoint (Ollama, OpenRouter, OpenAI, etc.)</small>
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input type="text" name="llm.model" placeholder="llama3.2">
+              <small>Model name or ID</small>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>API Key</label>
+            <input type="password" name="llm.apiKey" placeholder="Optional for Ollama">
+            <small>Leave empty for local Ollama, required for cloud APIs</small>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Timeout (ms)</label>
+              <input type="number" name="llm.timeoutMs" min="5000" max="300000" step="1000">
+              <small>Request timeout in milliseconds</small>
+            </div>
+            <div class="form-group">
+              <label>Retry Count</label>
+              <input type="number" name="llm.retryCount" min="0" max="10">
+              <small>Retries on timeout or 5xx</small>
+            </div>
+            <div class="form-group">
+              <label>Retry Delay (ms)</label>
+              <input type="number" name="llm.retryDelayMs" min="500" max="10000" step="500">
+              <small>Initial delay, doubles each retry</small>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Dual Agent (Optional)</h3>
+          <p class="section-description">Enable a second model for delegation. The primary agent can use delegate_to_agent tool to hand off subtasks.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="dualAgent.enabled" id="dualAgentEnabled">
+            <label for="dualAgentEnabled">Enable Dual Agent Mode</label>
+          </div>
+          
+          <div id="dualAgentFields">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Base URL</label>
+                <input type="text" name="dualAgent.baseUrl" placeholder="https://openrouter.ai/api/v1">
+              </div>
+              <div class="form-group">
+                <label>Model</label>
+                <input type="text" name="dualAgent.model" placeholder="arcee-ai/trinity-large-preview:free">
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>API Key</label>
+                <input type="password" name="dualAgent.apiKey" placeholder="Leave empty to use primary key">
+              </div>
+              <div class="form-group">
+                <label>Max Context Exchanges</label>
+                <input type="number" name="dualAgent.maxContextExchanges" min="1" max="20">
+                <small>Previous delegate exchanges to send as context</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Agent Tab -->
+      <div class="tab-content" data-tab="agent">
+        <div class="section">
+          <h3>Agent Behavior</h3>
+          <p class="section-description">Control how the AI agent operates and makes decisions.</p>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Agent Mode</label>
+              <select name="agent.mode">
+                <option value="auto">Auto (native tool calling if available)</option>
+                <option value="native">Native (tool calling required)</option>
+                <option value="react">ReAct (for models without tool calling)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Max Turns</label>
+              <input type="number" name="agent.maxTurns" min="5" max="100">
+              <small>Maximum tool-calling steps per request</small>
+            </div>
+          </div>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="agent.completionReminder" id="completionReminder">
+            <label for="completionReminder">Completion Reminder (remind agent to continue after each tool)</label>
+          </div>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="agent.verifyCompletion" id="verifyCompletion">
+            <label for="verifyCompletion">Verify Completion (ask LLM if task is done before stopping, adds 1 extra call)</label>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>System Prompt</h3>
+          <p class="section-description">Control how workspace-specific system prompts are used (SOUL.md or .openpaw/system-prompt.md).</p>
+          
+          <div class="form-group">
+            <label>System Prompt Mode</label>
+            <select name="systemPrompt.mode">
+              <option value="default">Default (ignore workspace prompt file)</option>
+              <option value="append">Append (base prompt + workspace file)</option>
+              <option value="replace">Replace (only workspace file content)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Skill Pack</h3>
+          <p class="section-description">Load a subset of tools for specific tasks (recon, wireless, web, or all tools).</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="pack.enabled" id="packEnabled">
+            <label for="packEnabled">Enable Skill Pack</label>
+          </div>
+          
+          <div class="form-group">
+            <label>Pack Name</label>
+            <select name="pack.packName">
+              <option value="">All Tools</option>
+              <option value="recon">Recon (nmap, run_script)</option>
+              <option value="wireless">Wireless (wireless_scan, wireless_attack)</option>
+              <option value="web">Web (nikto_scan)</option>
+              <option value="full">Full (all tools)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Accessibility</h3>
+          <p class="section-description">Enable accessibility mode for blind or motor-impaired users. Agent acts as your hands and eyes.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="accessibility.enabled" id="accessibilityEnabled">
+            <label for="accessibilityEnabled">Accessibility Mode (loads ALL tools, overrides skill pack)</label>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Workspace Tab -->
+      <div class="tab-content" data-tab="workspace">
+        <div class="section">
+          <h3>Workspace Paths</h3>
+          <p class="section-description">Configure directories for data storage, scripts, and code tools.</p>
+          
+          <div class="form-group">
+            <label>Data Directory</label>
+            <input type="text" name="workspace.dataDir" placeholder="./.openpaw">
+            <small>Where sessions, memory, and data are stored</small>
+          </div>
+          
+          <div class="form-group">
+            <label>Workspace Root</label>
+            <input type="text" name="workspace.workspaceRoot" placeholder=".">
+            <small>Root directory for code tools (read_file, write_file, etc.)</small>
+          </div>
+          
+          <div class="form-group">
+            <label>Scripts Directory</label>
+            <input type="text" name="workspace.scriptsDir" placeholder="./.openpaw/scripts">
+            <small>Directory for run_script tool (predefined bash scripts)</small>
+          </div>
+          
+          <div class="form-group">
+            <label>Current Engagement</label>
+            <input type="text" name="workspace.currentEngagement" placeholder="Leave empty for default workspace">
+            <small>Named workspace for engagements (e.g., penetration testing targets)</small>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Shell Tab -->
+      <div class="tab-content" data-tab="shell">
+        <div class="section">
+          <h3>Shell Control</h3>
+          <p class="section-description">Configure shell command execution. WARNING: Full control allows ANY command including sudo.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="shell.fullControl" id="shellFullControl">
+            <label for="shellFullControl">Full Control (no allowlist, enables sudo, apt, any command)</label>
+          </div>
+          
+          <div class="form-group">
+            <label>Command Timeout (ms)</label>
+            <input type="number" name="shell.timeout" min="5000" max="600000" step="1000">
+            <small>Maximum execution time for shell commands</small>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Danger Approval</h3>
+          <p class="section-description">Require user approval for dangerous commands.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="shell.dangerApproval" id="dangerApproval">
+            <label for="dangerApproval">Require approval for dangerous commands</label>
+          </div>
+          
+          <div class="form-group">
+            <label>Danger Patterns (comma-separated)</label>
+            <input type="text" name="shell.dangerPatterns" placeholder="sudo,rm -rf,nc -e,msfconsole">
+            <small>Commands containing these substrings require approval</small>
+          </div>
+        </div>
+        
+        <div class="section" id="shellAllowlistSection">
+          <h3>Allowlist (when Full Control is OFF)</h3>
+          
+          <div class="form-group">
+            <label>Allowed Commands (comma-separated)</label>
+            <textarea name="shell.allowedCommands" placeholder="ls,cat,pwd,git,npm,node"></textarea>
+            <small>Only these commands can be executed</small>
+          </div>
+          
+          <div class="form-group">
+            <label>Blocked Paths (comma-separated)</label>
+            <textarea name="shell.blockedPaths" placeholder="/etc,/root,/var/log"></textarea>
+            <small>Commands referencing these paths are blocked</small>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Channels Tab -->
+      <div class="tab-content" data-tab="channels">
+        <div class="section">
+          <h3>Discord</h3>
+          <p class="section-description">Connect OpenPaw to Discord.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="discord.enabled" id="discordEnabled">
+            <label for="discordEnabled">Enable Discord</label>
+          </div>
+          
+          <div id="discordFields">
+            <div class="form-group">
+              <label>Bot Token</label>
+              <input type="password" name="discord.token" placeholder="Bot token from Discord Developer Portal">
+            </div>
+            
+            <div class="form-group">
+              <label>Allowed User IDs (comma-separated)</label>
+              <input type="text" name="discord.allowedIds" placeholder="123456789,987654321">
+              <small>Leave empty to allow all users</small>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Telegram</h3>
+          <p class="section-description">Connect OpenPaw to Telegram.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="telegram.enabled" id="telegramEnabled">
+            <label for="telegramEnabled">Enable Telegram</label>
+          </div>
+          
+          <div id="telegramFields">
+            <div class="form-group">
+              <label>Bot Token</label>
+              <input type="password" name="telegram.botToken" placeholder="Bot token from @BotFather">
+            </div>
+            
+            <div class="form-group">
+              <label>Allowed User IDs (comma-separated)</label>
+              <input type="text" name="telegram.allowedIds" placeholder="123456789,987654321">
+              <small>Leave empty to allow all users</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Voice Tab -->
+      <div class="tab-content" data-tab="voice">
+        <div class="section">
+          <h3>Speech Recognition (STT)</h3>
+          <p class="section-description">Configure speech-to-text for voice interface.</p>
+          
+          <div class="form-group">
+            <label>STT Provider</label>
+            <select name="voice.sttProvider" id="sttProvider">
+              <option value="local">Local (Whisper via Transformers.js)</option>
+              <option value="elevenlabs">ElevenLabs (Cloud)</option>
+            </select>
+          </div>
+          
+          <div id="localSTTFields">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Whisper Model</label>
+                <input type="text" name="voice.sttModel" placeholder="Xenova/whisper-tiny.en">
+                <small>English-only: whisper-tiny.en, Multilingual: whisper-tiny</small>
+              </div>
+              <div class="form-group">
+                <label>Language</label>
+                <input type="text" name="voice.sttLanguage" placeholder="english, bulgarian, etc.">
+                <small>Leave empty for auto-detect</small>
+              </div>
+            </div>
+          </div>
+          
+          <div id="elevenLabsSTTFields" style="display:none;">
+            <div class="form-group">
+              <label>ElevenLabs API Key</label>
+              <input type="password" name="voice.elevenLabsApiKey">
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Model ID</label>
+                <input type="text" name="voice.elevenLabsSttModelId" placeholder="scribe_v2">
+              </div>
+              <div class="form-group">
+                <label>Language Code</label>
+                <input type="text" name="voice.elevenLabsSttLanguageCode" placeholder="en, bg, etc.">
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Text-to-Speech (TTS)</h3>
+          <p class="section-description">Configure browser speech synthesis language.</p>
+          
+          <div class="form-group">
+            <label>TTS Language</label>
+            <input type="text" name="voice.ttsLang" placeholder="en-US, bg-BG, etc.">
+            <small>Browser SpeechSynthesis language code</small>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Integrations Tab -->
+      <div class="tab-content" data-tab="integrations">
+        <div class="section">
+          <h3>Email</h3>
+          <p class="section-description">Enable email search and send tools.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="email.enabled" id="emailEnabled">
+            <label for="emailEnabled">Enable Email Integration</label>
+          </div>
+          
+          <div id="emailFields">
+            <div class="form-row">
+              <div class="form-group">
+                <label>IMAP/SMTP Host</label>
+                <input type="text" name="email.host" placeholder="mail.example.com">
+              </div>
+              <div class="form-group">
+                <label>Port</label>
+                <input type="number" name="email.port" min="1" max="65535">
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Username</label>
+                <input type="text" name="email.user">
+              </div>
+              <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="email.password">
+              </div>
+            </div>
+            
+            <div class="checkbox-group">
+              <input type="checkbox" name="email.secure" id="emailSecure">
+              <label for="emailSecure">Use SSL/TLS</label>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Google Search</h3>
+          <p class="section-description">Enable google_search tool (requires Google Cloud API).</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="googleSearch.enabled" id="googleSearchEnabled">
+            <label for="googleSearchEnabled">Enable Google Search</label>
+          </div>
+          
+          <div id="googleSearchFields">
+            <div class="form-group">
+              <label>API Key</label>
+              <input type="password" name="googleSearch.apiKey" placeholder="Get from Google Cloud Console">
+            </div>
+            
+            <div class="form-group">
+              <label>Search Engine ID (cx)</label>
+              <input type="text" name="googleSearch.engineId" placeholder="Create at programmablesearchengine.google.com">
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Knowledge Base (RAG)</h3>
+          <p class="section-description">Enable knowledge_search and knowledge_add tools for vector search.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="knowledge.enabled" id="knowledgeEnabled">
+            <label for="knowledgeEnabled">Enable Knowledge Base</label>
+          </div>
+          
+          <div id="knowledgeFields">
+            <div class="form-group">
+              <label>Knowledge Directory</label>
+              <input type="text" name="knowledge.knowledgeDir" placeholder="./.openpaw/knowledge">
+            </div>
+            
+            <div class="form-group">
+              <label>Embedding Model</label>
+              <input type="text" name="knowledge.embeddingModel" placeholder="text-embedding-3-small">
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Scheduler</h3>
+          <p class="section-description">Enable scheduled tasks (cron-based).</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="scheduler.enabled" id="schedulerEnabled">
+            <label for="schedulerEnabled">Enable Task Scheduler</label>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Session Tab -->
+      <div class="tab-content" data-tab="session">
+        <div class="section">
+          <h3>Session Management</h3>
+          <p class="section-description">Control conversation history and persistence.</p>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Session TTL (hours)</label>
+              <input type="number" name="session.ttlHours" min="1" max="720">
+              <small>Expire sessions after this many hours of inactivity</small>
+            </div>
+            <div class="form-group">
+              <label>Max History</label>
+              <input type="number" name="session.maxHistory" min="10" max="500">
+              <small>Maximum messages per session before trimming</small>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Summarize Threshold</label>
+              <input type="number" name="session.summarizeThreshold" min="0" max="100">
+              <small>Start summarizing history after this many messages (0 to disable)</small>
+            </div>
+            <div class="form-group">
+              <label>Keep Raw Messages</label>
+              <input type="number" name="session.keepRaw" min="0" max="50">
+              <small>Recent messages to keep unsummarized</small>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Memory</h3>
+          <p class="section-description">Configure the remember/recall tool.</p>
+          
+          <div class="form-group">
+            <label>Max Entries</label>
+            <input type="number" name="memory.maxEntries" min="100" max="10000">
+            <small>Maximum key-value pairs to store</small>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Audit Tab -->
+      <div class="tab-content" data-tab="audit">
+        <div class="section">
+          <h3>Audit Log</h3>
+          <p class="section-description">Log all tool calls for security and debugging.</p>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="audit.enabled" id="auditEnabled">
+            <label for="auditEnabled">Enable Audit Logging</label>
+          </div>
+          
+          <div class="form-group">
+            <label>Log Path</label>
+            <input type="text" name="audit.logPath" placeholder="./.openpaw/audit.log">
+            <small>Path to audit log file (JSON lines format)</small>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>Dashboard Security</h3>
+          <p class="section-description">Protect dashboard with authentication token.</p>
+          
+          <div class="form-group">
+            <label>Dashboard Token</label>
+            <input type="password" name="dashboard.token" placeholder="Leave empty to disable auth">
+            <small>Required via ?token=..., Authorization: Bearer, or X-Dashboard-Token header</small>
+          </div>
+          
+          <div class="form-group">
+            <label>Dashboard Port</label>
+            <input type="number" name="dashboard.port" min="1024" max="65535">
+          </div>
+        </div>
+      </div>
+      
+      <!-- Advanced Tab -->
+      <div class="tab-content" data-tab="advanced">
+        <div class="alert alert-info">
+          <strong>⚠️ Advanced Settings</strong><br>
+          These settings are for advanced users. Incorrect values may cause unexpected behavior.
+        </div>
+        
+        <div class="section">
+          <h3>Import from .env</h3>
+          <p class="section-description">One-time migration from legacy .env file to config.json.</p>
+          
+          <button type="button" class="btn btn-secondary" id="importEnvBtn">Import from .env File</button>
+          <div id="importStatus"></div>
+        </div>
+        
+        <div class="section">
+          <h3>Reset to Defaults</h3>
+          <p class="section-description">Reset all settings to default values.</p>
+          
+          <button type="button" class="btn btn-secondary" id="resetBtn">Reset All Settings</button>
+        </div>
+        
+        <div class="section">
+          <h3>Export/Import Configuration</h3>
+          <p class="section-description">Backup or share your configuration.</p>
+          
+          <div class="btn-group" style="margin-top: 0; padding-top: 0; border-top: none;">
+            <button type="button" class="btn btn-secondary" id="exportBtn">Export config.json</button>
+            <button type="button" class="btn btn-secondary" id="importBtn">Import config.json</button>
+            <input type="file" id="importFile" accept=".json" style="display:none;">
+          </div>
+        </div>
+      </div>
+      
+      <div class="btn-group">
+        <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+        <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+  
+  <script src="/static/settings.js"></script>
+</body>
+</html>
