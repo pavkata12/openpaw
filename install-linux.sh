@@ -85,26 +85,110 @@ if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
     print_status "Installing missing dependencies..."
     for dep in "${MISSING_DEPS[@]}"; do
         print_status "Installing ${dep}..."
-        sudo apt install -y "${dep}" || {
-            print_error "Failed to install ${dep}!"
-            print_error "Computer Use API will not work without: xdotool, scrot, imagemagick"
-            exit 1
-        }
+        
+        # Try standard install first
+        if sudo apt install -y "${dep}" 2>/dev/null; then
+            print_success "${dep} installed"
+        else
+            # If scrot fails, try alternatives
+            if [ "${dep}" = "scrot" ]; then
+                print_warning "scrot not found in repos, trying alternatives..."
+                
+                # Try gnome-screenshot
+                if sudo apt install -y gnome-screenshot 2>/dev/null; then
+                    print_success "gnome-screenshot installed (scrot alternative)"
+                # Try maim
+                elif sudo apt install -y maim 2>/dev/null; then
+                    print_success "maim installed (scrot alternative)"
+                # Try flameshot
+                elif sudo apt install -y flameshot 2>/dev/null; then
+                    print_success "flameshot installed (scrot alternative)"
+                # Check if imagemagick import is available
+                elif command -v convert &> /dev/null; then
+                    print_success "imagemagick already installed (can use 'import' for screenshots)"
+                else
+                    print_warning "⚠️  Could not install screenshot tool automatically."
+                    print_warning "    Computer screenshots may not work."
+                    print_warning "    Try manually: sudo apt install scrot"
+                    print_warning "    Or: sudo apt install gnome-screenshot"
+                    print_warning "    Continuing installation..."
+                fi
+            elif [ "${dep}" = "imagemagick" ]; then
+                # Try alternative imagemagick package name
+                if sudo apt install -y imagemagick-6.q16 2>/dev/null; then
+                    print_success "imagemagick-6.q16 installed"
+                else
+                    print_error "Failed to install ${dep}!"
+                    print_warning "Try manually: sudo apt install imagemagick"
+                    print_warning "Continuing installation..."
+                fi
+            else
+                print_error "Failed to install ${dep}!"
+                if [ "${dep}" = "xdotool" ]; then
+                    print_error "xdotool is critical for mouse/keyboard control!"
+                    print_warning "Try manually: sudo apt install xdotool"
+                    exit 1
+                fi
+            fi
+        fi
     done
-    print_success "All Computer Use dependencies installed"
+    print_success "Dependency installation complete"
 else
     print_success "All Computer Use dependencies already installed (xdotool, scrot, imagemagick)"
 fi
 
 # Verify installation
 print_status "Verifying Computer Use API tools..."
-if command -v xdotool &> /dev/null && command -v scrot &> /dev/null && command -v convert &> /dev/null; then
+VERIFIED=0
+TOTAL_CHECKS=3
+
+if command -v xdotool &> /dev/null; then
     print_success "✓ xdotool: $(xdotool --version 2>&1 | head -n1)"
-    print_success "✓ scrot: installed"
-    print_success "✓ imagemagick: $(convert --version | head -n1 | awk '{print $3}')"
+    ((VERIFIED++))
 else
-    print_error "Computer Use API dependencies verification failed!"
-    exit 1
+    print_error "✗ xdotool: NOT FOUND - Critical for mouse/keyboard control!"
+fi
+
+# Check for screenshot tools (any one is OK)
+if command -v scrot &> /dev/null; then
+    print_success "✓ scrot: installed"
+    ((VERIFIED++))
+elif command -v gnome-screenshot &> /dev/null; then
+    print_success "✓ gnome-screenshot: installed (scrot alternative)"
+    ((VERIFIED++))
+elif command -v maim &> /dev/null; then
+    print_success "✓ maim: installed (scrot alternative)"
+    ((VERIFIED++))
+elif command -v flameshot &> /dev/null; then
+    print_success "✓ flameshot: installed (scrot alternative)"
+    ((VERIFIED++))
+elif command -v import &> /dev/null; then
+    print_success "✓ imagemagick import: available for screenshots"
+    ((VERIFIED++))
+else
+    print_warning "⚠️  No screenshot tool found"
+    print_warning "   Recommended: sudo apt install scrot"
+fi
+
+if command -v convert &> /dev/null; then
+    print_success "✓ imagemagick: $(convert --version | head -n1 | awk '{print $3}')"
+    ((VERIFIED++))
+elif command -v magick &> /dev/null; then
+    print_success "✓ imagemagick: $(magick --version | head -n1 | awk '{print $3}')"
+    ((VERIFIED++))
+else
+    print_warning "⚠️  imagemagick: NOT FOUND"
+fi
+
+if [ $VERIFIED -ge 2 ]; then
+    print_success "Computer Use API tools: $VERIFIED/$TOTAL_CHECKS verified (sufficient to run)"
+elif [ $VERIFIED -eq 1 ]; then
+    print_warning "Computer Use API tools: $VERIFIED/$TOTAL_CHECKS verified (limited functionality)"
+    print_warning "Some features may not work. Install missing tools for full functionality."
+else
+    print_error "Computer Use API tools: $VERIFIED/$TOTAL_CHECKS verified (insufficient)"
+    print_error "Critical dependencies missing! Computer Use API will not work."
+    print_warning "Continuing installation, but manual fixes required..."
 fi
 
 # 4. Install pentesting tools (optional but recommended for Kali)
