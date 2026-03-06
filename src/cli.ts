@@ -44,6 +44,8 @@ import { createWordlistGeneratorTool, createPasswordMutatorTool } from "./tools/
 import { createToolCheckTool, createSystemReadyTool } from "./tools/system-check.js";
 import { createWhoisTool, createDNSEnumTool, createSubdomainFinderTool, createEmailHarvesterTool, createTechDetectionTool } from "./tools/osint.js";
 import { createScreenshotComputerTool, createMouseClickTool, createMouseMoveTool, createKeyboardTypeTool, createKeyboardPressTool, createComputerUseTool } from "./tools/computer-use.js";
+import { createAnimeSearchTool } from "./tools/anime-search.js";
+import { createSmartWebPipelineTool } from "./tools/smart-web-pipeline.js";
 import {
   createReadFileTool,
   createWriteFileTool,
@@ -170,6 +172,12 @@ async function bootstrap() {
   if (shouldRegister("keyboard_type")) registry.register(createKeyboardTypeTool());
   if (shouldRegister("keyboard_press")) registry.register(createKeyboardPressTool());
   if (shouldRegister("computer_use")) registry.register(createComputerUseTool());
+  
+  // Anime/Video search tool (web search + parsing for streaming links)
+  if (shouldRegister("anime_search")) registry.register(createAnimeSearchTool());
+  
+  // Smart web pipeline (search + fetch + parse + summarize)
+  if (shouldRegister("smart_web_search")) registry.register(createSmartWebPipelineTool());
 
   const mcp = await loadMCPTools(config.OPENPAW_DATA_DIR).catch(() => ({ tools: [], close: async () => {} }));
   for (const t of mcp.tools) {

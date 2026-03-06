@@ -40,6 +40,8 @@ import { createWordlistGeneratorTool, createPasswordMutatorTool } from "./tools/
 import { createToolCheckTool, createSystemReadyTool } from "./tools/system-check.js";
 import { createWhoisTool, createDNSEnumTool, createSubdomainFinderTool, createEmailHarvesterTool, createTechDetectionTool } from "./tools/osint.js";
 import { createScreenshotComputerTool, createMouseClickTool, createMouseMoveTool, createKeyboardTypeTool, createKeyboardPressTool, createComputerUseTool } from "./tools/computer-use.js";
+import { createAnimeSearchTool } from "./tools/anime-search.js";
+import { createSmartWebPipelineTool } from "./tools/smart-web-pipeline.js";
 import { createLocalWhisperSTT, createElevenLabsSTT } from "./voice/stt.js";
 import type { ChannelAdapter } from "./channels/types.js";
 import { loadTasks, saveTasks } from "./scheduler/task-store.js";
@@ -1565,6 +1567,8 @@ export async function startDashboard(deps?: DashboardDeps) {
     registry.register(createKeyboardTypeTool());
     registry.register(createKeyboardPressTool());
     registry.register(createComputerUseTool());
+    registry.register(createAnimeSearchTool());
+    registry.register(createSmartWebPipelineTool());
     
     registry.register(createDuckDuckGoSearchTool());
     registry.register(createFetchPageTool());
