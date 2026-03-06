@@ -42,6 +42,11 @@ import { createWhoisTool, createDNSEnumTool, createSubdomainFinderTool, createEm
 import { createScreenshotComputerTool, createMouseClickTool, createMouseMoveTool, createKeyboardTypeTool, createKeyboardPressTool, createComputerUseTool } from "./tools/computer-use.js";
 import { createAnimeSearchTool } from "./tools/anime-search.js";
 import { createSmartWebPipelineTool } from "./tools/smart-web-pipeline.js";
+import { createVoiceDescribeScreenTool } from "./tools/voice-describe-screen.js";
+import { createSmartNavigateTool } from "./tools/smart-navigate.js";
+import { createReadAloudTool } from "./tools/read-aloud.js";
+import { createAutoFixErrorsTool } from "./tools/auto-fix-errors.js";
+import { createContextAwareHelpTool } from "./tools/context-aware-help.js";
 import { createLocalWhisperSTT, createElevenLabsSTT } from "./voice/stt.js";
 import type { ChannelAdapter } from "./channels/types.js";
 import { loadTasks, saveTasks } from "./scheduler/task-store.js";
@@ -1569,6 +1574,11 @@ export async function startDashboard(deps?: DashboardDeps) {
     registry.register(createComputerUseTool());
     registry.register(createAnimeSearchTool());
     registry.register(createSmartWebPipelineTool());
+    registry.register(createVoiceDescribeScreenTool());
+    registry.register(createSmartNavigateTool());
+    registry.register(createReadAloudTool());
+    registry.register(createAutoFixErrorsTool());
+    registry.register(createContextAwareHelpTool());
     
     registry.register(createDuckDuckGoSearchTool());
     registry.register(createFetchPageTool());

@@ -46,6 +46,11 @@ import { createWhoisTool, createDNSEnumTool, createSubdomainFinderTool, createEm
 import { createScreenshotComputerTool, createMouseClickTool, createMouseMoveTool, createKeyboardTypeTool, createKeyboardPressTool, createComputerUseTool } from "./tools/computer-use.js";
 import { createAnimeSearchTool } from "./tools/anime-search.js";
 import { createSmartWebPipelineTool } from "./tools/smart-web-pipeline.js";
+import { createVoiceDescribeScreenTool } from "./tools/voice-describe-screen.js";
+import { createSmartNavigateTool } from "./tools/smart-navigate.js";
+import { createReadAloudTool } from "./tools/read-aloud.js";
+import { createAutoFixErrorsTool } from "./tools/auto-fix-errors.js";
+import { createContextAwareHelpTool } from "./tools/context-aware-help.js";
 import {
   createReadFileTool,
   createWriteFileTool,
@@ -178,6 +183,13 @@ async function bootstrap() {
   
   // Smart web pipeline (search + fetch + parse + summarize)
   if (shouldRegister("smart_web_search")) registry.register(createSmartWebPipelineTool());
+  
+  // ACCESSIBILITY & AUTOMATION TOOLS (for blind/low-vision users)
+  if (shouldRegister("voice_describe_screen")) registry.register(createVoiceDescribeScreenTool());
+  if (shouldRegister("smart_navigate")) registry.register(createSmartNavigateTool());
+  if (shouldRegister("read_aloud")) registry.register(createReadAloudTool());
+  if (shouldRegister("auto_fix_errors")) registry.register(createAutoFixErrorsTool());
+  if (shouldRegister("context_aware_help")) registry.register(createContextAwareHelpTool());
 
   const mcp = await loadMCPTools(config.OPENPAW_DATA_DIR).catch(() => ({ tools: [], close: async () => {} }));
   for (const t of mcp.tools) {
