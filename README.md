@@ -1,18 +1,147 @@
-# OpenPaw
+# OpenPaw 🐾
 
 **Your self-hosted AI assistant — built for Kali Linux, full control of your machine.**
 
-OpenPaw is a minimal, OpenClaw-inspired framework: an AI that runs on your machine, uses your LLM (OpenAI, Ollama, or any OpenAI-compatible API), and can **run any command** and control your Linux system. Primary platform: **Kali Linux**. No vendor lock-in, no mandatory cloud.
+OpenPaw is a comprehensive AI automation framework: an AI that runs on your machine, uses your LLM (OpenAI, Ollama, or any OpenAI-compatible API), and can **control everything** - shell commands, browser, mouse/keyboard, system automation. Primary platform: **Kali Linux**. No vendor lock-in, no mandatory cloud.
 
-## Why OpenPaw?
+---
 
-- **Kali Linux first** — Designed for penetration testers and power users. On Linux the agent runs with full shell control: any command, sudo, apt, nmap, scripts — you decide the limits.
-- **Full system control** — On Linux, `run_shell` uses `/bin/bash` with no allowlist/blocklist by default. The AI can manage services, run tools, and control the whole box.
-- **Simpler** — Small core, clear code, easy to read and modify. Get chatting in under a minute.
-- **OpenAI-compatible** — Use OpenAI, Ollama, OpenRouter, or any API that speaks the OpenAI chat format.
-- **Extensible** — Register custom tools in TypeScript; add channels (Discord, Telegram, etc.) the same way.
+## 🎯 Why OpenPaw?
 
-## Quick start (Kali Linux)
+- **🐉 Kali Linux first** — Designed for penetration testers and security professionals
+- **🖥️ Full system control** — Computer Use API: screen, mouse, keyboard automation
+- **🧠 48 Professional tools** — From pentesting to browser automation to AI suggestions
+- **💬 Chat History** — Persistent conversations with full context memory
+- **⚙️ GUI Configuration** — Web dashboard for all settings (no more .env editing!)
+- **🎙️ Voice Control** — Full voice interface for accessibility
+- **🔧 13 Pentesting Tools** — Nuclei, SQLMap, Metasploit, Hydra, and more
+- **📊 Professional Reports** — Generate PDF/HTML/Markdown reports
+- **🌐 Browser Automation** — Playwright-powered with stealth mode
+- **🎨 Modern UI** — Beautiful web dashboard with dark/light themes
+
+---
+
+## ⚡ Quick Start (Automated Installation)
+
+### Linux/Kali:
+```bash
+git clone https://github.com/pavkata12/openpaw.git
+cd openpaw
+chmod +x install-linux.sh
+./install-linux.sh
+```
+
+### Windows:
+```powershell
+git clone https://github.com/pavkata12/openpaw.git
+cd openpaw
+.\install-windows.ps1
+```
+
+### macOS:
+```bash
+git clone https://github.com/pavkata12/openpaw.git
+cd openpaw
+chmod +x install-macos.sh
+./install-macos.sh
+```
+
+**The installer will:**
+- ✅ Install Node.js (if needed)
+- ✅ Install system dependencies (xdotool, scrot/alternatives, imagemagick)
+- ✅ Install pentesting tools (optional prompt)
+- ✅ Build TypeScript
+- ✅ Create data directories
+- ✅ Download PEASS scripts (LinPEAS, WinPEAS)
+- ✅ Run system health check
+
+See [INSTALL.md](INSTALL.md) for manual installation.
+
+---
+
+## 🚀 Features
+
+
+### 🎨 Modern Web Dashboard
+- **Chat History UI** - View, switch, rename, delete past conversations
+- **Settings GUI** - Configure everything from the web interface
+- **Voice Chat** - Browser-based speech interface
+- **Task Scheduler** - Manage scheduled AI tasks
+- **Audit Log** - Track all tool executions
+- **Engagement Manager** - Organize pentesting engagements
+
+### 🖥️ Computer Use API (Anthropic Claude-style)
+- **Full Desktop Screenshots** - Capture entire screen
+- **Mouse Control** - Click, move, drag at any coordinates
+- **Keyboard Control** - Type text, press keys
+- **Cross-platform** - Windows (PowerShell), macOS (cliclick), Linux (xdotool)
+- **Vision Integration** - AI can see and interact with desktop
+
+### 🔐 Pentesting Tools (13 integrated)
+- **Vulnerability Scanning** - Nuclei
+- **Web Enumeration** - Gobuster, Ffuf
+- **Web Exploitation** - SQLMap, WPScan
+- **Privilege Escalation** - LinPEAS, WinPEAS, enum4linux
+- **Password Attacks** - Hashcat, Hydra
+- **Exploitation** - Metasploit search & info
+- **AI Exploit Suggestions** - Smart recommendations
+
+### 📊 Professional Reporting
+- **Create Reports** - Structured pentest reports
+- **Add Findings** - Track vulnerabilities with severity
+- **Export Formats** - PDF, HTML, Markdown
+- **CVSS Calculator** - Automated scoring
+
+### 🔍 Intelligence & OSINT
+- **Vulnerability Databases** - CVE lookup (NVD), Exploit-DB search
+- **OSINT Tools** - WHOIS, DNS enum, subdomain finder, email harvester
+- **Tech Detection** - Identify technologies on targets
+- **Custom Wordlists** - Generate and mutate passwords
+
+### 🌐 Enhanced Browser Automation
+- **Playwright Integration** - Full browser control
+- **Stealth Mode** - Anti-bot detection
+- **Persistent Sessions** - Cookies and state preserved
+- **Vision Click** - GPT-4V/Claude 3 element finding
+- **Video Control** - YouTube, streaming platforms
+- **Smart Search** - Find elements by description
+
+### 💾 Session & Memory Management
+- **Persistent Chat History** - All conversations saved
+- **Context Awareness** - AI remembers past conversations
+- **Session Switching** - Continue any previous chat
+- **Auto-summarization** - Long conversations compressed
+- **TTL Management** - Configurable expiration
+
+### ⚡ Advanced Agent Features
+- **Smart Error Recovery** - Auto-retry with exponential backoff
+- **Task Checkpointing** - Resume interrupted work
+- **Parallel Tool Execution** - Multiple tools at once
+- **Completion Verification** - Ensures tasks finish
+- **Workflow Learning** - Records successful patterns
+- **Tool Result Caching** - Faster repeated operations
+- **Real-time Streaming** - SSE for live updates
+
+---
+
+## 🛠️ System Requirements
+
+### Minimum:
+- **Node.js** 18+ (installer handles this)
+- **RAM** 2GB+ (4GB+ recommended for LLM)
+- **Disk** 500MB for OpenPaw + space for LLM
+
+### For Computer Use API:
+- **Linux**: xdotool, scrot (or gnome-screenshot/maim), imagemagick
+- **macOS**: cliclick, screencapture (built-in)
+- **Windows**: PowerShell (built-in)
+
+### For Pentesting Tools (optional):
+- Kali Linux or install manually: nmap, nuclei, gobuster, sqlmap, etc.
+
+---
+
+## 📋 Commands
 
 1. **Node 20+**: `node -v` — if older: `sudo apt update && sudo apt install -y nodejs` or [NodeSource](https://github.com/nodesource/distributions) / nvm.
 2. **Create `.env`** (not in git):
@@ -56,24 +185,323 @@ OPENPAW_SHELL_FULL_CONTROL=true
 - **OpenAI**: `OPENPAW_LLM_BASE_URL=https://api.openai.com/v1`, `OPENPAW_LLM_MODEL=gpt-4o-mini`, `OPENPAW_LLM_API_KEY=sk-...`
 - **Kimi (Moonshot)**: Key at [platform.moonshot.ai](https://platform.moonshot.ai/console/api-keys), `api.moonshot.ai/v1` + `moonshot-v1-32k`
 
-## Commands
 
 | Command | Description |
-|--------|-------------|
+|---------|-------------|
+| `npm run dashboard` | **Web dashboard** on http://localhost:3780 (chat, voice, settings, tasks, audit) |
 | `npm run start:cli` | Interactive chat in the terminal |
-| `npm run voice` | Start dashboard + open voice chat (browser Speech API) |
-| `npm run gateway` | Multi-channel mode (CLI + Discord if configured) |
-| `npm run start:dashboard` | Web dashboard on http://localhost:3780 (chat, voice, tasks, **workspace selector**, **audit log**) |
+| `npm run voice` | Start dashboard + open voice chat |
+| `npm run gateway` | Multi-channel mode (CLI + Discord/Telegram if configured) |
 | `npm run build` | Compile TypeScript to `dist/` |
-| `openpaw doctor` | Validate config and paths |
+| `npm start` | Same as start:cli |
+| `openpaw doctor` | Validate config and system health |
 | `openpaw backup create [name]` | Create backup |
 | `openpaw backup list` | List backups |
 | `openpaw backup restore <name>` | Restore backup |
-| `openpaw init` | Create data dir and scripts dir; copy example scripts from repo. Use `openpaw init --target` to add TARGET.md template to workspace. |
+| `openpaw init` | Create data directories and example scripts |
+| `openpaw use <name>` | Switch to named workspace/engagement |
 
-## Configuration
+---
 
-Environment variables (in `.env` or your shell):
+## ⚙️ Configuration
+
+### Web Dashboard (Recommended)
+1. Start dashboard: `npm run dashboard`
+2. Open: http://localhost:3780
+3. Click "⚙️ Settings"
+4. Configure everything in the GUI!
+
+### Manual Configuration (.env)
+
+Still supported! Create `.env` from `.env.example`:
+
+
+### Key Environment Variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENPAW_LLM_BASE_URL` | OpenAI-compatible API base URL | `http://localhost:11434/v1` (Ollama) |
+| `OPENPAW_LLM_MODEL` | Model name | `llama3.2` |
+| `OPENPAW_LLM_API_KEY` | API key (optional for Ollama) | — |
+| `OPENPAW_DATA_DIR` | Directory for memory and data | `./.openpaw` |
+| `OPENPAW_WORKSPACE` | Root directory for code tools | `.` |
+| `OPENPAW_SHELL_FULL_CONTROL` | Allow any shell command | `true` on Linux, `false` elsewhere |
+| `OPENPAW_AGENT_MAX_TURNS` | Max tool-calling turns per request | `100` (increased for long tasks) |
+| `OPENPAW_AGENT_COMPLETION_REMINDER` | Inject reminders to complete tasks | `true` |
+| `OPENPAW_AGENT_VERIFY_COMPLETION` | Verify task completion | `true` |
+| `OPENPAW_SESSION_TTL_HOURS` | Session expiration time | `24` |
+| `OPENPAW_AUDIT_LOG` | Enable tool execution logging | `false` |
+| `OPENPAW_ACCESSIBILITY_MODE` | Voice-first accessibility mode | `false` |
+| `OPENPAW_DASHBOARD_TOKEN` | Dashboard auth token (optional) | — |
+
+See [Configuration Guide](docs/configuration.md) for all 40+ variables.
+
+---
+
+## 🎯 What Can OpenPaw Do?
+
+### 🔐 Penetration Testing
+```
+You: Run full recon on 192.168.1.0/24
+AI: *runs nmap scan* → *enumerates services* → *suggests exploits* → *generates report*
+```
+
+### 🌐 Browser Automation
+```
+You: Find a tutorial on React hooks and open it
+AI: *searches* → *finds best result* → *opens in browser* → *can interact with page*
+```
+
+### 🖥️ System Control
+```
+You: Take a screenshot and tell me what's on my screen
+AI: *captures desktop* → *analyzes with vision* → "You have 3 terminal windows open..."
+```
+
+### 💬 Conversation Memory
+```
+You: What did we discuss yesterday?
+AI: *loads conversation history* → "We worked on the Python script for..."
+```
+
+### 📊 Professional Reports
+```
+You: Create a pentest report for the scan we just did
+AI: *creates structured report* → *adds findings* → *exports to PDF*
+```
+
+---
+
+## 📚 Documentation
+
+- **[INSTALL.md](INSTALL.md)** - Detailed installation guide
+- **[BEATS-OPENCLAW.md](BEATS-OPENCLAW.md)** - Feature comparison with OpenClaw
+- **[PENTESTING-TOOLS-COMPLETE.md](PENTESTING-TOOLS-COMPLETE.md)** - Pentesting guide
+- **[COMPLETE-SYSTEM.md](COMPLETE-SYSTEM.md)** - System architecture
+- **[CHAT-HISTORY-COMPLETE.md](CHAT-HISTORY-COMPLETE.md)** - Chat history features
+- **[CONFIG-GUI-COMPLETE.md](CONFIG-GUI-COMPLETE.md)** - GUI configuration guide
+- **[KALI-SCREENSHOT-FIX.md](KALI-SCREENSHOT-FIX.md)** - Screenshot tool troubleshooting
+- **[ROADMAP.md](ROADMAP.md)** - Future plans
+- **[KALI-AGI-PLAN.md](KALI-AGI-PLAN.md)** - Kali tools integration plan
+
+---
+
+## 🏗️ Architecture
+
+```
+src/
+  config.ts           # Configuration management
+  config-manager.ts   # JSON-based config (replaces .env)
+  llm.ts             # OpenAI-compatible chat client + ReAct fallback
+  agent.ts           # Agent loop (LLM + tools)
+  agent/
+    react.ts         # ReAct parser for non-tool-calling models
+  cli.ts             # CLI interface
+  router.ts          # Message routing + Lane Queue
+  session.ts         # Session management
+  session-store.ts   # Persistent session storage
+  streaming.ts       # SSE streaming support
+  tool-cache.ts      # Tool result caching
+  checkpoint.ts      # Task checkpointing
+  error-recovery.ts  # Smart error handling
+  dashboard.ts       # Web dashboard + API
+  tools/
+    types.ts         # Tool definitions
+    registry.ts      # Tool registration
+    memory.ts        # remember, recall
+    shell.ts         # run_shell
+    code.ts          # read_file, write_file, list_dir, search_in_files, apply_patch
+    browser.ts       # Browser automation (basic)
+    browser-enhanced.ts  # Browser automation (advanced with stealth)
+    screenshot.ts    # Screen capture + vision_click
+    computer-use.ts  # Computer Use API (mouse, keyboard, desktop screenshots)
+    ytdlp.ts         # Video extraction and download
+    workflow-memory.ts  # Workflow learning
+    pentest/         # 13 pentesting tools
+      nuclei.ts      # Vulnerability scanner
+      sqlmap.ts      # SQL injection
+      metasploit.ts  # Exploitation framework
+      gobuster.ts    # Directory/DNS fuzzing
+      hydra.ts       # Password cracker
+      hashcat.ts     # Hash cracker
+      wpscan.ts      # WordPress scanner
+      ffuf.ts        # Web fuzzer
+      linpeas.ts     # Linux privilege escalation
+      winpeas.ts     # Windows privilege escalation
+      enum4linux.ts  # SMB enumeration
+    reporting.ts     # Report generation
+    vuln-database.ts # CVE/Exploit-DB lookup
+    osint.ts         # OSINT tools
+    wordlist-generator.ts  # Custom wordlists
+    system-check.ts  # Tool verification
+  exploit-suggestion.ts  # AI-powered exploit suggestions
+  channels/
+    cli.ts           # CLI channel
+    discord.ts       # Discord adapter
+    telegram.ts      # Telegram adapter
+    types.ts         # Channel interfaces
+  voice/
+    stt.ts           # Speech-to-text (Whisper, ElevenLabs)
+    tts.ts           # Text-to-speech
+    voice-loop.ts    # Voice interaction loop
+  views/
+    index.html       # Main dashboard
+    settings.html    # Settings GUI
+    settings.js      # Settings frontend
+    chat-history.js  # Chat history manager
+```
+
+---
+
+## 🔧 Extending OpenPaw
+
+### Add Custom Tools
+
+```typescript
+import { ToolDefinition } from "./tools/types.js";
+import { createToolRegistry } from "./tools/registry.js";
+
+const registry = createToolRegistry();
+
+const myTool: ToolDefinition = {
+  name: "my_custom_tool",
+  description: "Does something awesome",
+  parameters: {
+    type: "object",
+    properties: {
+      input: { type: "string", description: "Some input" }
+    },
+    required: ["input"]
+  },
+  async execute(args) {
+    // Your logic here
+    return "Result!";
+  }
+};
+
+registry.register(myTool);
+```
+
+### Add Custom Channels
+
+```typescript
+import { runAgent } from "./agent.js";
+import { createLLM } from "./llm.js";
+import { createToolRegistry } from "./tools/registry.js";
+
+const llm = createLLM(config);
+const registry = createToolRegistry();
+
+// Your channel logic
+async function handleMessage(userId: string, text: string) {
+  const reply = await runAgent(llm, registry, text, [], {
+    maxTurns: 20
+  });
+  
+  // Send reply back to your channel
+  await yourChannel.send(userId, reply);
+}
+```
+
+---
+
+## 🎨 Screenshots
+
+### Web Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Chat History
+![Chat History](docs/screenshots/chat-history.png)
+
+### Settings GUI
+![Settings](docs/screenshots/settings.png)
+
+### Voice Interface
+![Voice](docs/screenshots/voice.png)
+
+---
+
+## ♿ Accessibility
+
+**Full voice control** for blind users:
+
+1. **Setup** (one-time): Someone helps configure `.env` and start `npm run dashboard`
+2. **Use**: Open http://localhost:3780/voice in browser with screen reader
+3. **Talk**: Speak your requests, AI responds with TTS
+4. **Hands-free**: AI acts as your "hands and eyes" on the computer
+
+Enable: `OPENPAW_ACCESSIBILITY_MODE=true`
+
+AI can:
+- ✅ Open websites and read content
+- ✅ Search and find information
+- ✅ Play media (YouTube, local files)
+- ✅ Read and send emails (if configured)
+- ✅ Run system commands
+- ✅ Control desktop (with Computer Use API)
+
+**Telegram Alternative**: Even easier - just send voice messages to the bot!
+
+---
+
+## 🆚 OpenPaw vs OpenClaw
+
+See [BEATS-OPENCLAW.md](BEATS-OPENCLAW.md) for detailed comparison.
+
+### OpenPaw Advantages:
+- ✅ Computer Use API (screen/mouse/keyboard)
+- ✅ 48 professional tools vs 24
+- ✅ 13 pentesting tools integrated
+- ✅ Chat history UI with persistence
+- ✅ GUI configuration dashboard
+- ✅ Professional report generation
+- ✅ AI exploit suggestions
+- ✅ OSINT tools built-in
+- ✅ Video handling (yt-dlp)
+- ✅ Stealth browser automation
+- ✅ Tool result caching
+- ✅ Smart error recovery
+- ✅ Task checkpointing
+- ✅ Workflow learning
+- ✅ Real-time streaming
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+
+1. Fork the repo
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Inspired by [OpenClaw](https://github.com/OpenClaw/openclaw)
+- Built for the Kali Linux community
+- Powered by OpenAI-compatible LLMs
+
+---
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/pavkata12/openpaw/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/pavkata12/openpaw/discussions)
+- **Documentation**: See `docs/` folder
+
+---
+
+**OpenPaw - Your AI assistant for everything. Built for power users. Open source forever.** 🐾✨
 
 | Variable | Description | Default |
 |----------|-------------|---------|
